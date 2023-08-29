@@ -18,8 +18,8 @@ url: http://zhangxingAI.github.io
 rss_url: 
 
 # gavatar头像及Favicon
-gavatar: /public/upload/gavatar/gavatar.jpg
-favicon: /public/upload/gavatar/favicon.ico
+gavatar: /public/upload/gavatar/gavatar.jpeg
+favicon: /public/upload/gavatar/gavatar.ico
 
 # google analytics 设置
 google_analytics_tracking_id: UA-108442533-1
