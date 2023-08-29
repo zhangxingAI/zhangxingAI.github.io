@@ -22,9 +22,9 @@ gavatar: /public/upload/gavatar/gavatar.jpg
 favicon: /public/upload/gavatar/favicon.ico
 
 # google analytics 设置
-google_analytics_tracking_id:
+google_analytics_tracking_id: UA-108442533-1
 ga:
-  id:
+  id: UA-108442533-1
   url: 
 
 # disqus 设置
@@ -33,8 +33,8 @@ disqus:
 
 # gitment
 gitment:
-  id:
-  secret:
+  id: ddbaadab5f5d810805c3
+  secret: 13b91b306680f11a55713382529b83259ef56546
 
 # 主题设置，自动激活某个标签
 active: 技术
