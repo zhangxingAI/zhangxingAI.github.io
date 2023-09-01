@@ -19,8 +19,6 @@ keywords: stable_siffusion；KL_divergence；
 
 **变分自编码器（Variational Autoencoder，VAE）**是由Diederik P. Kingma和Max Welling提出的一种人工神经结构，属于概率[图模式](https://zh.wikipedia.org/wiki/圖模式)和[变分贝叶斯方法](https://zh.wikipedia.org/w/index.php?title=变分贝叶斯方法&action=edit&redlink=1)。
 
-VAE
-
 #### KL 散度
 
 假设给定事件$x$，有以下定义：
