@@ -3,10 +3,13 @@
 layout: post
 title: 扩散模型（diffusion model）
 category: 计算机视觉
-tags: Stable Diffusion; VAE; 
-keywords: Stable Diffusion；KL divergence；
+tags: stable_diffusion; VAE; 
+keywords: stable_siffusion；KL_divergence；
 
 ---
+
+* TOC
+{:toc}
 
 ## 背景
 
