@@ -108,7 +108,7 @@ $$
   
   假设，$p$为真实的分布函数，我们想要用带参数$\theta$的分布函数$q_{\theta}$，去近似 $p$。也就是说，通过选取参数 $\theta$， 让 $q_{\theta}$ 和 $p$ 在某种意义上具有相似性。下面，我们分别将选取正向KL和反向KL做为目标函数进行说明。为了方便，我们假设 $p$ 为双峰分布，$q_{\theta}$ 为正态分布，故 $\theta$ 包含均值和方差两个参数。
 
-<img src="../../public/upload/stable_diffusion/KL1.png" style="zoom:50%;" />
+![KL1](/public/upload/stable_diffusion/KL1.png)
 
 - **最小化正向KL目标函数**
 
