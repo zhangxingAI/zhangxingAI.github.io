@@ -5,7 +5,7 @@ title: 扩散模型（diffusion model）
 category: 计算机视觉
 tags: stable_diffusion; VAE; 
 keywords: stable_siffusion；KL_divergence；
-
+typora-root-url: ../..
 ---
 
 * TOC
@@ -133,9 +133,7 @@ $$
 
 所以有下图**mean-seeking**的结果
 
-
-
-<img src="../../public/upload/stable_diffusion/KL2.png" alt="KL2" style="zoom:50%;" />
+<img src="/public/upload/stable_diffusion/KL2.png" style="zoom:50%;" />
 
 - **最小化反向KL目标函数**
 
@@ -161,7 +159,7 @@ $$
 
 此时得到分布 $q$ 是一个比较 “窄” 的分布，可见下方两种分布的对比图（**mean-seeking与mode-seeking**）。
 
-<img src="../../public/upload/stable_diffusion/KL5.png" style="zoom:50%;" />
+<img src="/public/upload/stable_diffusion/KL5.png" style="zoom:50%;" />
 
 上图绿色和红色曲线分别为 $p$与$q$ 的等高线
 
@@ -174,9 +172,10 @@ $$
 由于正向 KL 散度和反向 KL 散度各自的特点，q 在 “贴近”p 的时候，会出现下图的区别：
 
 <center class="half">    
-  <img  src="../../public/upload/stable_diffusion/KL2.png" alt="KL2" style="zoom:40%;"/>    
-  <img src="../../public/upload/stable_diffusion/KL3.png" style="zoom:40%;"/> 
+  <img  src="/public/upload/stable_diffusion/KL2.png" alt="KL2" style="zoom:40%;"/>    
+  <img src="/public/upload/stable_diffusion/KL3.png" style="zoom:40%;"/> 
 </center>
+
 
 上面左图是最小化 𝐷𝐾𝐿(𝑝||𝑞) 的效果。在这种情况下，我们选择一个 $q$ 使得它在 $p$ 具有高概率的地方具有高概率，意味着在优化过程中，**更在意真实分布 $p$ 中的常见事件**，也就是蓝线的两峰，我们要优先确保它们在分布 $q$ 中不是特别罕见（信息长度不是特别长）。当 $p$ 具有多个峰时，$q$ 选择将这些峰模糊到一起，以便将高概率质量放到所有峰上。
 
@@ -186,7 +185,7 @@ $$
 
 Reverse KL 和 Forward KL的直观对比 [出处](https://www.tuananhle.co.uk/notes/reverse-forward-kl.html)
 
-![](../../public/upload/stable_diffusion/reverse_forward_kl.png)
+![](/public/upload/stable_diffusion/reverse_forward_kl.png)
 
 - **KL散度的应用**
 
