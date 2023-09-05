@@ -5,10 +5,14 @@ title: mmdetection3d 数据处理
 category: 计算机视觉
 tags: mmdetection
 keywords: 3D detection
-
+typora-root-url: ../..
 ---
 
+* TOC
+{:toc}
+
 ## 基本数据格式
+
 ### 点云格式
 目前，mmdetection3d 只支持`.bin`格式的的点云用于训练和推理。使用数据集之前，需要将其他格式的点云文件转化为`.bin`文件。常见的点云数据包括`.pcd`和`.las`。
 1. `.pcd`转换成`.bin`：[`pypc`](https://github.com/DanielPollithy/pypcd)

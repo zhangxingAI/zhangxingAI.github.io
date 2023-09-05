@@ -4,8 +4,9 @@ layout: post
 title: 扩散模型（diffusion model）
 category: 计算机视觉
 tags: stable_diffusion; VAE; 
-keywords: stable_siffusion；KL_divergence；
+keywords: stable_siffusion KL_divergence 
 typora-root-url: ../..
+
 ---
 
 * TOC
@@ -15,9 +16,33 @@ typora-root-url: ../..
 
 **Stable Diffusion**是一种[扩散模型](https://zh.wikipedia.org/wiki/扩散模型)（diffusion model）的变体，叫做“潜在扩散模型”（latent diffusion model; LDM）。扩散模型是在2015年推出的，其目的是消除对训练图像的连续应用[高斯噪声](https://zh.wikipedia.org/wiki/高斯噪声)，可以将其视为一系列去噪[自编码器](https://zh.wikipedia.org/wiki/自编码器)。Stable Diffusion由3个部分组成：[变分自编码器](https://zh.wikipedia.org/wiki/变分自编码器)（VAE）、[U-Net](https://zh.wikipedia.org/wiki/U-Net)和一个文本编码器。
 
+
+
 ### VAE
 
 **变分自编码器（Variational Autoencoder，VAE）**是由Diederik P. Kingma和Max Welling提出的一种人工神经结构，属于概率[图模式](https://zh.wikipedia.org/wiki/圖模式)和[变分贝叶斯方法](https://zh.wikipedia.org/w/index.php?title=变分贝叶斯方法&action=edit&redlink=1)。
+
+VAE与[自编码器](https://zh.wikipedia.org/wiki/自编码器)模型有关，因为两者在结构上有一定亲和力，但在目标和数学表述上有很大区别。VAE属于概率生成模型（Probabilistic Generative Model），神经网络仅是其中的一个组件，依照功能的不同又可分为编码器和解码器。编码器可将输入变量映射到与变分分布的参数相对应的潜空间（Latent Space），这样便可以产生多个遵循同一分布的不同样本。解码器的功能基本相反，是从潜空间映射回输入空间，以生成数据点。虽然噪声模型的方差可以单独学习而来，但它们通常都是用重参数化技巧（Reparameterization Trick）来训练的。
+
+此类模型最初是为[无监督学习](https://zh.wikipedia.org/wiki/無監督學習)设计的，但在[半监督学习](https://zh.wikipedia.org/wiki/半监督学习)和[监督学习](https://zh.wikipedia.org/wiki/监督学习)中也表现出卓越的有效性。
+
+#### VAE的结构与操作概述
+
+VAE是一个分别具有先验和噪声分布的生成模型，一般用最大期望算法（Expectation-Maximization meta-algorithm）来训练。这样可以优化数据似然的下限，用其它方法很难实现这点，且需要 $q$ 分布或变分后验。这些 $ q$ 分布通常在一个单独的优化过程中为每个单独数据点设定参数；而VAE则用神经网络作为一种摊销手段来联合优化各个数据点，将数据点本身作为输入，输出变分分布的参数。从一个已知的输入空间映射到低维潜空间，这是一种编码过程，因此这张神经网络也叫“编码器”。
+
+解码器则从潜空间映射回输入空间，如作为噪声分布的平均值。也可以用另一个映射到方差的神经网络，为简单起见一般都省略掉了。这时，方差可以用梯度下降法进行优化。
+
+优化模型常用的两个术语是“重构误差（reconstruction error）”和“[KL散度](https://zh.wikipedia.org/wiki/KL散度)”。它们都来自概率模型的自由能表达式（Free Energy Expression ），因而根据噪声分布和数据的假定先验而有所不同。例如，像IMAGENET这样的标准VAE任务一般都假设具有高斯分布噪声，但二值化的MNIST这样的任务则需要伯努利噪声。自由能表达式中的KL散度使得与 $p$ 分布重叠的 $q$ 分布的概率质量最大化，但这样可能导致出现搜寻模态（Mode-Seeking Behaviour）。自由能表达式的剩余部分是“重构”项，需要用采样逼近来计算其期望。
+
+![](./public/upload/VAE/VAE_Basic.png)
+
+VAE的基本框架。模型接受 $x$ 为输入。编码器将其压缩到潜空间。解码器以在潜空间采样的信息为输入，并产生 $x'$ ，使其与 $x$ 尽可能相似。
+
+从建立概率模型的角度来看，人们希望用他们选择的参数化概率分布 $p_\theta(x) = p(x\|\theta)$ 使数据 $x$ 的概率最大化。这一分布常是高斯分布  $N(x|\mu, \sigma)$ ，分别参数化为 $\mu$ 和 $\sigma$ ，作为指数族的一员很容易作为噪声分布来处理。简单的分布很容易最大化，但如果假设了潜质（latent）$z$ 的先验分布，可能会产生难以解决的积分。
+
+
+
+
 
 #### KL 散度
 
@@ -72,7 +97,7 @@ $$
 
 - - **(shannon)熵** $H(p)$是传输一个随机变量状态值所需的比特位下界（最短平均编码长度）。**(shannon)熵可以描述系统的混乱程度，是系统有序化程度的一个度量**。随机变量的取值个数越多，状态数也就越多，信息熵就越大，混乱程度就越大，系统越无序。概率为0或1的事件的熵为0，随机变量为均匀分布时熵最大。$0 < 非均匀分布的熵 < 均匀分布的熵$
 
-  - **交叉熵** $H(p,q)$是指用分布 $q$ 来表示本来表示分布 $p$ 的平均编码长度。
+  - **交叉熵** $H(p,q)$是指用分布 $q$ 来表示本来表示分布 $p$ 的平均编码长度。**交叉熵用来衡量在给定的真实分布下，使用非真实分布所指定的策略消除系统的不确定性所需要付出成本的大小。**
 
   - **相对熵**（**即KL散度**） $D_{KL}(p \|q)$可以用来衡量两个概率分布之间的差异，其意义就是求 $p$  与 $q$  之间的对数差在  $p$ 上的期望值，对应用 $q$  来表示分布 $p$ 额外需要的编码长度。
 
@@ -181,7 +206,13 @@ $$
 
 上面右图是最小化 $D_{K L}(𝑞\|𝑝)$ 的效果。在这种情况下，我们选择一个 q 使得它在 p 具有低概率的地方具有低概率，意味着在优化过程中，**更在意真实分布 p 中的罕见事件**，也就是蓝线的谷底，我们要优先确保它们在分布 q 中不是特别常见（信息长度特别长的那些事件）。当 p 具有多个峰并且这些峰间隔很宽时，如该图所示，最小化 KL 散度会选择单个峰，以避免将概率质量放置在 p 的多个峰之间的低概率区域中。图中是当 q 被选择成强调左边峰时的结果，我们也可以通过选择右边峰来得到 KL 散度相同的值。如果这些峰没有被足够强的低概率区域分离，那么 KL 散度的这个方向仍然可能选择模糊这些峰。
 
+二维分布情况下的图：
 
+![](./public/upload/stable_diffusion/KL6.png)
+
+左图：正向KL，$q$ 趋近于完全覆盖 $p$
+
+中、右图：反向KL，$q$ 能够锁定某一个峰值
 
 Reverse KL 和 Forward KL的直观对比 [出处](https://www.tuananhle.co.uk/notes/reverse-forward-kl.html)
 
