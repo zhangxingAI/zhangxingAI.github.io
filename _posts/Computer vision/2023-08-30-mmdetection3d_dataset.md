@@ -18,9 +18,18 @@ typora-root-url: ../..
 1. `.pcd`转换成`.bin`：[pypc](https://github.com/DanielPollithy/pypcd)
 ```python
 pip install git+https://github.com/DanielPollithy/pypcd.git
+import numpy as np
+from pypcd import pypcd
+
+pcd_data = pypcd.PointCloud.from_path('point_cloud_data.pcd')
+points = np.zeros([pcd_data.width, 4], dtype=np.float32)
+points[:, 0] = pcd_data.pc_data['x'].copy()
+points[:, 1] = pcd_data.pc_data['y'].copy()
+points[:, 2] = pcd_data.pc_data['z'].copy()
+points[:, 3] = pcd_data.pc_data['intensity'].copy().astype(np.float32)
+with open('point_cloud_data.bin', 'wb') as f:
+    f.write(points.tobytes())
 ```
-
-
 2. `.las`转换为`.bin`：常见的流程为`.las``->``.bin`。[转换工具](https://github.com/Hitachi-Automotive-And-Industry-Lab/semantic-segmentation-editor)
 
 ### 标签格式
