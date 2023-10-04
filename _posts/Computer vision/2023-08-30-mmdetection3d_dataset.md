@@ -16,8 +16,12 @@ typora-root-url: ../..
 ### 点云格式
 目前，mmdetection3d 只支持`.bin`格式的的点云用于训练和推理。使用数据集之前，需要将其他格式的点云文件转化为`.bin`文件。常见的点云数据包括`.pcd`和`.las`。
 1. `.pcd`转换成`.bin`：[pypc](https://github.com/DanielPollithy/pypcd)
+
 ```python
-pip install git+https://github.com/DanielPollithy/pypcd.git
+pip install pypcd
+```
+
+```python
 import numpy as np
 from pypcd import pypcd
 
@@ -41,6 +45,8 @@ with open('point_cloud_data.bin', 'wb') as f:
 1.23 1.42 0.23 3.96 1.65 1.55 1.56 Car
 3.51 2.15 0.42 1.05 0.87 1.86 1.23 Pedestrian
 ```
+3. `.csv`转换成`.bin`：
+
 
 ### 校准格式
 
