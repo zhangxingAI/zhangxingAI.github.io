@@ -22,7 +22,7 @@ typora-root-url: ../..
 
 #### 使用文档目录
 
-[1](https://github.com/zhangxingAI/zhangxingAI.github.io/blob/main/public/upload/obtain_point_cloud/Gocator 产品参数和选型.pdf)
+[1](./public/upload/obtain_point_cloud/Gocator 产品参数和选型.pdf)
 
-
+![](./public/upload/obtain_point_cloud/Gocator 产品参数和选型.pdf)
 
