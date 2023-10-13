@@ -20,7 +20,7 @@ typora-root-url: ../..
 
 + 系列：Gocator系列｜轮廓传感器
 
-  <img src="./public/upload/camera/c1.png" style="zoom:50%;" />
+  <img src="/public/upload/camera/c1.png" style="zoom:50%;" />
 
 + 名称：Gocator 2450
 
@@ -52,7 +52,7 @@ typora-root-url: ../..
 
 传感器可以连接到计算机的以太网端口进 行设置，也可以连接到编码器、光电管或 PLC 等设备。
 
-![](./public/upload/obtain_point_cloud/1.png)
+![](/public/upload/obtain_point_cloud/1.png)
 
 安装成功后，传感器有指示灯显示
 
@@ -66,7 +66,7 @@ typora-root-url: ../..
 + MR：550mm
 + FOV：145-425mm
 
-<img src="./public/upload/obtain_point_cloud/2.png" style="zoom:50%;" />
+<img src="/public/upload/obtain_point_cloud/2.png" style="zoom:50%;" />
 
 ### 2. 软件配置
 
@@ -74,13 +74,13 @@ typora-root-url: ../..
 
 通电后，将系统防火墙关闭，并将连接传感器得网卡 IP 地址修改成跟传感器同一网段。 传感器默认 IP 地址为 192.168.1.10。
 
-<img src="./public/upload/obtain_point_cloud/3.png" style="zoom:50%;" />
+<img src="/public/upload/obtain_point_cloud/3.png" style="zoom:50%;" />
 
 #### 2.2 打开传感器界面
 
 IP 地址修改完成后，浏览器地址栏输入传感器 IP 地址后即可进入，推荐使用谷歌浏览器，如进入到以下界面表示连接成功。
 
-<img src="./public/upload/obtain_point_cloud/4.png" style="zoom:50%;" />
+<img src="/public/upload/obtain_point_cloud/4.png" style="zoom:50%;" />
 
 #### 2.3 软件调试
 
@@ -90,13 +90,13 @@ IP 地址修改完成后，浏览器地址栏输入传感器 IP 地址后即可�
 
 放置被测物，时间模式开启传感器，调整合适曝光，视野中可见清晰轮廓线，前后移动平台（被测物）Y 方向并观察视图区轮廓，保证整个被测物都在视野中，如部分区域超出视野，需继续调整传感器与被测物之间距离直至实现。选择有效区域。 扫描界面→传感器→有效区域→选择，可出现黄色选择框，可以自由调节也可输入区域位置和大小，选择合适的有效区域并保证被测物所有位置都在有效区域内，设置完成后点击保存。
 
-<img src="./public/upload/obtain_point_cloud/6.png" style="zoom:50%;" />
+<img src="/public/upload/obtain_point_cloud/6.png" style="zoom:50%;" />
 
 ##### 2.3.2 点云的形成
 
 点云其实是很多表面轮廓沿着垂直于轮廓线的方向（点云的 Y 方向）排列而成的立体图，如下图，要获取这样的图像，需要被测物和传感器一边做相对运动一边采集轮廓，这样传感器把采集到的所有不同位置的表面轮廓按照 Y 方向依次排列，也就形成了点云，我们通常把这个过程称为点云的扫描。
 
-<img src="./public/upload/obtain_point_cloud/5.png" style="zoom:50%;" />
+<img src="/public/upload/obtain_point_cloud/5.png" style="zoom:50%;" />
 
 #### 2.4 点云获取
 
@@ -110,11 +110,11 @@ IP 地址修改完成后，浏览器地址栏输入传感器 IP 地址后即可�
 
 
 
-<img src="./public/upload/obtain_point_cloud/7.png" style="zoom:50%;" />
+<img src="/public/upload/obtain_point_cloud/7.png" style="zoom:50%;" />
 
-<img src="./public/upload/obtain_point_cloud/8.png" style="zoom:50%;" />
+<img src="/public/upload/obtain_point_cloud/8.png" style="zoom:50%;" />
 
-<img src="./public/upload/obtain_point_cloud/9.png" style="zoom:50%;" />
+<img src="/public/upload/obtain_point_cloud/9.png" style="zoom:50%;" />
 
 ##### 2.4.2 产品扫描
 

@@ -4,7 +4,7 @@ layout: post
 title: 相机产品
 category: 计算机视觉
 tags: camera3D
-keywords: 大恒
+keywords: camera3D
 typora-root-url: ../..
 
 ---
@@ -40,7 +40,7 @@ typora-root-url: ../..
 
 - 激光线扫三角测量（依赖扫描角度与传送速度）
 
-  <img src="./public/upload/camera/c1.png" style="zoom:50%;" />
+  <img src="/public/upload/camera/c1.png" style="zoom:50%;" />
 
 - 结构光+双目相机（一体式快照）
 
