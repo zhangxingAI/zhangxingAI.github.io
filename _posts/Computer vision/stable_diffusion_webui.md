@@ -1,9 +1,13 @@
+---
+
 layout: post
 title: Stable Diffusion
 category: 计算机视觉
 tags: 
 keywords:
 typora-root-url: ../..
+
+---
 
 ### Stable Diffusion
 
@@ -70,3 +74,123 @@ UI界面
 **Seed** 种子数，只要中子数一样，参数一致、模型一样图像就能重新；
 
 **Denoising strength** 与原图一致性的程度，一般大于0.7出来的都是新效果，小于0.3基本就会原图缝缝补补；
+
+
+
+
+
+Stable Diffusion XL是Stable Diffusion的优化版本
+
+相当于：yolov8是 yolo的优化版本
+
+#### Stable Diffusion XL核心基础内容
+
+与Stable DiffusionV1-v2相比，Stable Diffusion XL主要做了如下的优化：
+
+1. 对Stable Diffusion原先的U-Net，VAE，CLIP Text Encoder三大件都做了改进。
+2. 增加一个单独的基于Latent的Refiner模型，来提升图像的精细化程度。
+3. 设计了很多训练Tricks，包括图像尺寸条件化策略，图像裁剪参数条件化以及多尺度训练等。
+4. **先发布Stable Diffusion XL 0.9测试版本，基于用户使用体验和生成图片的情况，针对性增加数据集和使用RLHF技术优化迭代推出Stable Diffusion XL 1.0正式版**。
+
+##### SDXL整体架构
+
+Stable Diffusion XL是一个**二阶段的级联扩散模型**，包括Base模型和Refiner模型。其中Base模型的主要工作和Stable Diffusion一致，具备文生图，图生图，图像inpainting等能力。在Base模型之后，级联了Refiner模型，对Base模型生成的图像Latent特征进行精细化，**其本质上是在做图生图的工作**。
+
+**Base模型由U-Net，VAE，CLIP Text Encoder（两个）三个模块组成**，在FP16精度下Base模型大小6.94G（FP32：13.88G），其中U-Net大小5.14G，VAE模型大小167M以及两个CLIP Text Encoder一大一小分别是1.39G和246M。
+
+**Refiner模型同样由U-Net，VAE，CLIP Text Encoder（一个）三个模块组成**，在FP16精度下Refiner模型大小6.08G，其中U-Net大小4.52G，VAE模型大小167M（与Base模型共用）以及CLIP Text Encoder模型大小1.39G（与Base模型共用）。
+
+![](/public/upload/SDXL/1.png)
+
+![](/public/upload/SDXL/2.png)
+
+1. **GSC模块：**Stable Diffusion Base XL U-Net中的最小组件之一，由GroupNorm+SiLU+Conv三者组成。
+2. **DownSample模块：**Stable Diffusion Base XL U-Net中的下采样组件，**使用了Conv（kernel_size=(3, 3), stride=(2, 2), padding=(1, 1)）进行采下采样**。
+3. **UpSample模块：**Stable Diffusion Base XL U-Net中的上采样组件，由**插值算法（nearest）**+Conv组成。
+4. **ResNetBlock模块：**借鉴ResNet模型的“残差结构”，**让网络能够构建的更深的同时，将Time Embedding信息嵌入模型**。
+5. **CrossAttention模块：**将文本的语义信息与图像的语义信息进行Attention机制，增强输入文本Prompt对生成图片的控制。
+6. **SelfAttention模块：**SelfAttention模块的整体结构与CrossAttention模块相同，这是输入全部都是图像信息，不再输入文本信息。
+7. **FeedForward模块：**Attention机制中的经典模块，由GeGlU+Dropout+Linear组成。
+8. **BasicTransformer Block模块：**由LayerNorm+SelfAttention+CrossAttention+FeedForward组成，是多重Attention机制的级联，并且每个Attention机制都是一个“残差结构”。**通过加深网络和多Attention机制，大幅增强模型的学习能力与图文的匹配能力**。
+9. **SDXL_Spatial Transformer_X模块：**由GroupNorm+Linear+**X个BasicTransformer Block**+Linear构成，同时ResNet模型的“残差结构”依旧没有缺席。
+10. **SDXL_DownBlock模块：**由ResNetBlock+ResNetBlock+DownSample组成。
+11. **SDXL_UpBlock_X模块：**由X个ResNetBlock模块组成。
+12. **CrossAttnDownBlock_X_K模块：**是Stable Diffusion XL Base U-Net中Encoder部分的主要模块，由K个**（ResNetBlock模块+SDXL_Spatial Transformer_X模块）**+DownSample模块组成。
+13. **CrossAttnUpBlock_X_K模块：**是Stable Diffusion XL Base U-Net中Decoder部分的主要模块，由K个**（ResNetBlock模块+SDXL_Spatial Transformer_X模块）**+UpSample模块组成。
+14. **CrossAttnMidBlock模块：**是Stable Diffusion XL Base U-Net中Encoder和ecoder连接的部分，由ResNetBlock+**SDXL_Spatial Transformer_10**+ResNetBlock组成。
+
+可以看到，其中增加的**SDXL_Spatial Transformer_X模块（主要包含Self Attention + Cross Attention + FeedForward）**数量占新增参数量的主要部分，Rocky在上表中已经用红色框圈出。U-Net的Encoder和Decoder结构也从原来的4stage改成3stage（[1,1,1,1] -> [0,2,10]），说明SDXL只使用两次下采样和上采样，而之前的SD系列模型都是三次下采样和上采样。并且比起Stable DiffusionV1/2，Stable Diffusion XL在第一个stage中不再使用Spatial Transformer Blocks，而在第二和第三个stage中大量增加了Spatial Transformer Blocks（分别是2和10），**那么这样设计有什么好处呢？**
+
+首先，**在第一个stage中不使用SDXL_Spatial Transformer_X模块，可以明显减少显存占用和计算量。**然后在第二和第三个stage这两个维度较小的feature map上使用数量较多的SDXL_Spatial Transformer_X模块，能**在大幅提升模型整体性能（学习能力和表达能力）的同时，优化了计算成本**。整个新的SDXL Base U-Net设计思想也让SDXL的Base出图分辨率提升至1024x1024。在参数保持一致的情况下，**Stable Diffusion XL生成图片的耗时只比Stable Diffusion多了20%-30%之间，这个拥有2.6B参数量的模型已经足够伟大**。
+
+在SDXL U-Net的Encoder结构中，包含了两个CrossAttnDownBlock结构和一个SDXL_DownBlock结构；在Decoder结构中，包含了两个CrossAttnUpBlock结构和一个SDXL_UpBlock结构；与此同时，Encoder和Decoder中间存在Skip Connection，进行信息的传递与融合。
+
+**BasicTransformer Block模块是整个框架的基石，由SelfAttention，CrossAttention和FeedForward三个组件构成，并且使用了循环残差模式，让SDXL Base U-Net不仅可以设计的更深，同时也具备更强的文本特征和图像体征的学习能力**。
+
+**Stable Diffusion XL中的Text Condition信息由两个Text Encoder提供（OpenCLIP ViT-bigG和OpenAI CLIP ViT-L）**，通过Cross Attention组件嵌入，作为K Matrix和V Matrix。与此同时，图片的Latent Feature作为Q Matrix。
+
+### **2.3 VAE模型**
+
+VAE模型（变分自编码器，Variational Auto-Encoder）是一个经典的生成式模型。在传统深度学习时代，GAN的风头完全盖过了VAE，但VAE简洁稳定的Encoder-Decoder架构，**以及能够高效提取数据Latent特征的关键能力**，让其跨过了周期，在AIGC时代重新繁荣。
+
+Stable Diffusion XL依旧是**基于Latent**的扩散模型，**所以VAE的Encoder和Decoder结构依旧是Stable Diffusion XL提取图像Latent特征和图像像素级重建的关键一招**。
+
+当输入是图片时，Stable Diffusion XL和Stable Diffusion一样，首先会使用VAE的**Encoder结构将输入图像转换为Latent特征**，然后U-Net不断对Latent特征进行优化，最后使用VAE的**Decoder结构将Latent特征重建出像素级图像**。除了提取Latent特征和图像的像素级重建外，**VAE还可以改进生成图像中的高频细节，小物体特征和整体图像色彩**。
+
+当Stable Diffusion XL的输入是文字时，这时我们不需要VAE的Encoder结构，只需要Decoder进行图像重建。VAE的灵活运用，让Stable Diffusion系列增添了几分优雅。
+
+**Stable Diffusion XL使用了和之前Stable Diffusion系列一样的VAE结构**，但在训练中选择了**更大的Batch-Size（256 vs 9）**，并且对模型进行指数滑动平均操作（**EMA**，exponential moving average），EMA对模型的参数做平均，从而提高性能并增加模型鲁棒性。
+
+![img](/public/upload/SDXL/3.png)
+
+在损失函数方面，使用了久经考验的**生成领域“交叉熵”—感知损失（perceptual loss）**以及回归损失来约束VAE的训练过程。
+
+与此同时，VAE的**缩放系数**也产生了变化。VAE在将Latent特征送入U-Net之前，需要对Latent特征进行缩放让其标准差尽量为1，之前的Stable Diffusion系列采用的**缩放系数为0.18215，**由于Stable Diffusion XL的VAE进行了全面的重训练，所以**缩放系数重新设置为0.13025**。
+
+注意：由于缩放系数的改变，Stable Diffusion XL VAE模型与之前的Stable Diffusion系列并不兼容。
+
+### **2.4 CLIP Text Encoder模型**
+
+**CLIP模型主要包含Text Encoder和Image Encoder两个模块**，在Stable Diffusion XL中，和之前的Stable Diffusion系列一样，**只使用Text Encoder模块从文本信息中提取Text Embeddings**。
+
+**不过Stable Diffusion XL与之前的系列相比，使用了两个CLIP Text Encoder，分别是OpenCLIP ViT-bigG（1.39G）和OpenAI CLIP ViT-L（246M），从而大大增强了Stable Diffusion XL对文本的提取和理解能力。**
+
+其中OpenCLIP ViT-bigG是一个只由Transformer模块组成的模型，一共有32个CLIPEncoder模块，是一个强力的特征提取模型。
+
+OpenAI CLIP ViT-L同样是一个只由Transformer模块组成的模型，一共有12个CLIPEncoder模块。
+
+OpenCLIP ViT-bigG的优势在于模型结构更深，特征维度更大，特征提取能力更强，但是其两者的基本CLIPEncoder模块是一样的。
+
+**与传统深度学习中的模型融合类似**，Stable Diffusion XL分别提取两个Text Encoder的倒数第二层特征，并进行concat操作作为文本条件（Text Conditioning）。其中OpenCLIP ViT-bigG的特征维度为77x1280，而CLIP ViT-L的特征维度是77x768，所以输入总的特征维度是77x2048（77是最大的token数），再通过Cross Attention模块将文本信息传入Stable Diffusion XL的训练过程与推理过程中。
+
+### **2.5 Refiner模型**
+
+DeepFloyd和StabilityAI联合开发的DeepFloyd IF**是一种基于像素的文本到图像三重级联扩散模型**，大大提升了扩散模型的图像生成能力。
+
+这次，Stable Diffusion XL终于也开始使用级联策略，在U-Net（Base）之后，级联Refiner模型，进一步提升生成图像的细节特征与整体质量。
+
+**通过级联模型提升生成图片的质量，可以说这是AIGC时代里的模型融合。和传统深度学习时代的多模型融合策略一样，不管是学术界，工业界还是竞赛界，都是“行业核武”般的存在。**
+
+![img](/public/upload/SDXL/4.png)
+
+由于已经有U-Net（Base）模型生成了图像的Latent特征，所以**Refiner模型的主要工作是在Latent特征进行小噪声去除和细节质量提升**。
+
+**Refiner模型和Base模型一样是基于Latent的扩散模型**，也采用了Encoder-Decoder结构，和U-Net兼容同一个VAE模型，不过Refiner模型的Text Encoder只使用了OpenCLIP ViT-bigG。
+
+**下图是Stable Diffusion XL Refiner模型的完整结构图**
+
+![img](/public/upload/SDXL/5.webp)
+
+在Stable Diffusion XL推理阶段，输入一个prompt，通过VAE和U-Net（Base）模型生成Latent特征，接着给这个Latent特征加一定的噪音，在此基础上，再使用Refiner模型进行去噪，以提升图像的整体质量与局部细节。
+
+![img](/public/upload/SDXL/6.png)
+
+可以看到，**Refiner模型主要做了图像生成图像的工作**，其具备很强的**迁移兼容能力**，可以作为Stable Diffusion，GAN，VAE等生成式模型的级联组件，不管是对学术界，工业界还是竞赛界，无疑都是一个无疑都是一个巨大利好。
+
+![img](/public/upload/SDXL/7.png)
+
+只使用U-Net（Base）模型，Stable Diffusion XL模型的效果已经大幅超过SD1.5和SD2.1，当增加Refiner模型之后，Stable Diffusion XL达到了更加优秀的图像生成效果。
+
+### 2.6 训练技巧&细节
+
+Stable Diffusion XL在训练阶段提出了很多Tricks，包括图像尺寸条件化策略，图像裁剪参数条件化以及多尺度训练。**这些Tricks都有很好的通用性和迁移性，能普惠其他的生成式模型。**
