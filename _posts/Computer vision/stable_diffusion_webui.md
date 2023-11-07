@@ -4,7 +4,7 @@ layout: post
 title: Stable Diffusion
 category: 计算机视觉
 tags: stable_diffusion
-keywords:
+keywords: stable_diffusion
 typora-root-url: ../..
 
 ---
