@@ -11,6 +11,14 @@ typora-root-url: ../..
 
 ### Stable Diffusion
 
+参考资料：
+
+[深入浅出完整解析Stable Diffusion XL（SDXL）核心基础知识](https://zhuanlan.zhihu.com/p/643420260)（作者Rocky Ding）
+
+ [How to run SDXL v1.0 with AUTOMATIC1111](https://aituts.com/sdxl/)（作者 Yubin）
+
+[Stable Diffusion XL 1.0 model](https://stable-diffusion-art.com/sdxl-model/)（作者Andrew）
+
 bash webui.sh
 
 插件安装：
@@ -65,13 +73,15 @@ UI界面
 
 **Tiling** 生成一个可以平铺的图像；
 
-**Highres. fix** 使用两个步骤的过程进行生成，以较小的分辨率创建图像，然后在不改变构图的情况下改进其中的细节，选择该部分会有两个新的参数 **Scale latent** 在潜空间中对图像进行缩放。另一种方法是从潜在的表象中产生完整的图像，将其升级，然后将其移回潜在的空间。Denoising strength 决定算法对图像内容的保留程度。在0处，什么都不会改变，而在1处，你会得到一个不相关的图像；
+**Highres. fix** 使用两个步骤的过程进行生成，以较小的分辨率创建图像，然后在不改变构图的情况下改进其中的细节，选择该部分会有两个新的参数
+
+ **Scale latent** 在潜空间中对图像进行缩放。另一种方法是从潜在的表象中产生完整的图像，将其升级，然后将其移回潜在的空间。Denoising strength 决定算法对图像内容的保留程度。在0处，什么都不会改变，而在1处，你会得到一个不相关的图像；
 
 **Batch count、 Batch size** 都是生成几张图，前者计算时间长，后者需要显存大；
 
 **CFG Scale** 分类器自由引导尺度——图像与提示符的一致程度——越低的值产生越有创意的结果；
 
-**Seed** 种子数，只要中子数一样，参数一致、模型一样图像就能重新；
+**Seed** 种子数，只要种子数一样，参数一致、模型一样图像就能重新被绘制；
 
 **Denoising strength** 与原图一致性的程度，一般大于0.7出来的都是新效果，小于0.3基本就会原图缝缝补补；
 
@@ -94,13 +104,13 @@ Stable Diffusion XL是Stable Diffusion的优化版本
 
 ##### SDXL整体架构
 
-Stable Diffusion XL是一个**二阶段的级联扩散模型**，包括Base模型和Refiner模型。其中Base模型的主要工作和Stable Diffusion一致，具备文生图，图生图，图像inpainting等能力。在Base模型之后，级联了Refiner模型，对Base模型生成的图像Latent特征进行精细化，**其本质上是在做图生图的工作**。
+Stable Diffusion XL是一个**二阶段的级联扩散模型**，包括Base模型和Refiner模型。其中Base模型的主要工作和Stable Diffusion一致，具备文生图，图生图，图像inpainting等能力。在Base模型之后，级联了Refiner模型，对Base模型生成的图像Latent特征进行精细化，**其本质上是在做图生图的工作**。Base模型用于生成有噪声的latent，这些latent在最后的去噪步骤中使用专门的Refiner模型进行处理。Base模型可以单独使用，但Refiner模型只能依附base模式使用提高图像的清晰度和质量。
 
 **Base模型由U-Net，VAE，CLIP Text Encoder（两个）三个模块组成**，在FP16精度下Base模型大小6.94G（FP32：13.88G），其中U-Net大小5.14G，VAE模型大小167M以及两个CLIP Text Encoder一大一小分别是1.39G和246M。
 
 **Refiner模型同样由U-Net，VAE，CLIP Text Encoder（一个）三个模块组成**，在FP16精度下Refiner模型大小6.08G，其中U-Net大小4.52G，VAE模型大小167M（与Base模型共用）以及CLIP Text Encoder模型大小1.39G（与Base模型共用）。
 
-![](/public/upload/SDXL/1.png)
+![SDXL model pipeline](/public/upload/SDXL/1.png)
 
 ![](/public/upload/SDXL/2.png)
 
@@ -194,3 +204,38 @@ DeepFloyd和StabilityAI联合开发的DeepFloyd IF**是一种基于像素的文�
 ### 2.6 训练技巧&细节
 
 Stable Diffusion XL在训练阶段提出了很多Tricks，包括图像尺寸条件化策略，图像裁剪参数条件化以及多尺度训练。**这些Tricks都有很好的通用性和迁移性，能普惠其他的生成式模型。**
+
+推荐图片大小
+
+- 21:9 – 1536 x 640
+- 16:9 – 1344 x 768
+- 3:2 – 1216 x 832
+- 5:4 – 1152 x 896
+- 1:1 – 1024 x 1024
+
+### 实践
+
+目前可以在本地运行SDXL的主流方法为
+
+- **[AUTOMATIC1111's Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui)**最流行的 WebUI，拥有最多的功能和扩展，最容易学习。本说明书将使用此方法
+- **[ComfyUI ](https://github.com/comfyanonymous/ComfyUI)**上手较难，node based interface，但生成速度非常快，比 AUTOMATIC1111 快 5-10 倍。允许使用两种不同的正向提示。
+
+#### Install/Upgrade AUTOMATIC1111
+
+下载base model 和 refiner model（每个～6GB）[huggingface网站](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0)
+
+base model作为训练或推理时的底模使用
+
+![img](/public/upload/SDXL/8.png)
+
+refiner model仅在推理时使用
+
+![Refiner model selector ](/public/upload/SDXL/9.png)
+
+- **Checkpoint**: 选择refiner model
+
+- **Switch at**: 切换位置，该值控制在哪一步切换到refiner model。例如，在 0.5 时切换并使用 40 个步骤表示在前 20 个步骤中使用base model，在后 20 个步骤中使用refiner model。
+
+  如果切换到 1，则只使用base model。
+
+经验最优值为**30 steps** and **switch at 0.6**
