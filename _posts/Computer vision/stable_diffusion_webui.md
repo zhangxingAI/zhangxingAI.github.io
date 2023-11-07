@@ -3,7 +3,7 @@
 layout: post
 title: Stable Diffusion
 category: 计算机视觉
-tags: 
+tags: stable_diffusion
 keywords:
 typora-root-url: ../..
 
