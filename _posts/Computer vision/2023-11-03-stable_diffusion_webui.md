@@ -19,6 +19,8 @@ typora-root-url: ../..
 
 [Stable Diffusion XL 1.0 model](https://stable-diffusion-art.com/sdxl-model/)（作者Andrew）
 
+[超全面的Stable Diffusion学习指南：模型篇](https://stable-diffusion-art.com/sdxl-model/)（作者乐伊ROY）
+
 bash webui.sh
 
 插件安装：
@@ -35,17 +37,19 @@ Stable Diffusion模型下载网站
 
 LyCORIS、Controlnet、Poses、wildcards等
 
-★checkpoint模型是真正意义上的Stable Diffusion模型，它们包含生成图像所需的一切，不需要额外的文件。但是它们体积很大，通常为2G-7 G。
+- checkpoint模型是真正意义上的Stable Diffusion模型，它们包含生成图像所需的一切（TextEncoder， U-net， VAE），不需要额外的文件。但是它们体积很大，通常为2G-7 G。官方的Stable Diffusion v1-5 版本模型的训练使用了 256 个 40G 的 A100 GPU，合计耗时 15 万个 GPU 小时（约 17 年），总成本达到了 60 万美元。除此之外，为了验证模型的出图效果，伴随着上万名测试人员每天 170 万张的出图测试。Stable Diffusion 作为专注于图像生成领域的大模型，它的目的并不是直接进行绘图，而是通过学习海量的图像数据来做预训练，提升模型整体的基础知识水平，这样就能以强大的通用性和实用性状态完成后续下游任务的应用。Stable Diffusion 官方模型的真正价值在于降低了模型训练的门槛，因为在现有大模型基础上训练新模型的成本要低得多。对特定图片生成任务来说，只需在官方模型基础上加上少量的文本图像数据，并配合微调模型的训练方法，就能得到应用于特定领域的定制模型。一方面训练成本大大降低，只需在本地用一张民用级显卡训练几小时就能获得稳定出图的定制化模型，另一方面，针对特定方向训练模型的理解和绘图能力更强，实际的出图效果反而有了极大的提升。
 
-目前比较流行和常见的checkpoint模型有Anythingv3、Anythingv4.5、AbyssOrangeMix3、counterfeitV2.5、PastalMix、CamelliaMix_2.5D、chilloutMix_Ni_fix、F222、openjourney等。这些checkpoint模型是从Stable Diffusion基本模型训练而来的，相当于基于原生安卓系统进行的二次开发。目前，大多数模型都是从 v1.4 或 v1.5 训练的。它们使用其他数据进行训练，以生成特定风格或对象的图像。
+- Checkpoint 模型的常见训练方法叫 Dreambooth，该技术原本由谷歌团队基于自家的 Imagen 模型开发，后来经过适配被引入 Stable Diffusion 模型中，并逐渐被广泛应用。![12](/public/upload/SDXL/12.png)
 
-Anything、Waifu、novelai、Counterfeit是二次元漫画模型，比较适合生成动漫游戏图片
+- Textual lnversion（又叫Embedding）是定义新关键字以生成新人物或图片风格的小文件。Stable Diffusion 模型包含文本编码器、扩散模型和图像编码器 3 个部分，其中文本编码器 TextEncoder 的作用是将提示词转换成电脑可以识别的文本向量，而 Embedding 模型的原理就是通过训练将包含特定风格特征的信息映射在其中，这样后续在输入对应关键词时，模型就会自动启用这部分文本向量来进行绘制。它们很小，通常为10-100 KB。必须将它们与checkpoint模型一起使用。（2023-11-06时间段中实际应用中效果不佳，不推荐使用）![截屏2023-11-07 11.28.45](./public/upload/SDXL/13.png)
 
-★Textual lnversion（又叫Embedding）是定义新关键字以生成新人物或图片风格的小文件。它们很小，通常为10-100 KB。必须将它们与checkpoint模型一起使用。
+- LoRA 模型是用于修改图片风格的checkpoint模型的小补丁文件。它们通常为10-200 MB。必须与checkpoint模型一起使用。LoRA 是 Low-Rank Adaptation Models 的缩写，意思是低秩适应模型。LoRA 原本并非用于 AI 绘画领域，它是微软的研究人员为了解决大语言模型微调而开发的一项技术，因此像 GPT3.5 包含了 1750 亿量级的参数，如果每次训练都全部微调一遍体量太大，而有了 lora 就可以将训练参数插入到模型的神经网络中去，而不用全面微调。通过这样即插即用又不破坏原有模型的方法，可以极大的降低模型的训练参数，模型的训练效率也会被显著提升。![](/public/upload/SDXL/15.png)
 
-★LoRA 模型是用于修改图片风格的checkpoint模型的小补丁文件。它们通常为10-200 MB。必须与checkpoint模型一起使用。
+  相较于 Dreambooth 全面微调模型的方法，LoRA 的训练参数可以减少上千倍，对硬件性能的要求也会急剧下降，如果说 Embeddings 像一张标注的便利贴，那 LoRA 就像是额外收录的夹页，在这个夹页中记录了更全面图片特征信息。
 
-★Hypernetwork是添加到checkpoint模型中的附加网络模块。它们通常为5-300 MB。必须与checkpoint模型一起使用。
+  由于需要微调的参数量大大降低，LoRA 模型的文件大小通常在几百 MB，比 Embeddings 丰富了许多，但又没有 ckpt 那么臃肿。模型体积小、训练难度低、控图效果好，可以说是目前最热门的模型之一。
+
+- Hypernetwork是添加到checkpoint模型中的附加网络模块。它们通常为5-300 MB。必须与checkpoint模型一起使用。它的原理是在扩散模型之外新建一个神经网络来调整模型参数，而这个神经网络也被称为超网络。因为 Hypernetwork 训练过程中同样没有对原模型进行全面微调，因此模型尺寸通常也在几十到几百 MB 不等。它的实际效果，我们可以将其简单理解为低配版的 LoRA，虽然超网络这名字听起来很厉害，但其实这款模型如今的风评并不出众，在国内已逐渐被 lora 所取代。因为它的训练难度很大且应用范围较窄，目前大多用于控制图像画风。所以除非是有特定的画风要求，否则还是建议优先选择 LoRA 模型来使用。![](/public/upload/SDXL/14.png)
 
 ★Aesthetic Gradient是一个功能，它将准备好的图像数据的方向添加到“Embedding”中，将输入的提示词转换为矢量表示并定向图像生成。
 
@@ -222,7 +226,25 @@ Stable Diffusion XL在训练阶段提出了很多Tricks，包括图像尺寸条�
 
 #### Install/Upgrade AUTOMATIC1111
 
+- on Linux
+
+```cmd
+# Create environment
+conda create -n sd python=3.10.6
+# Activate environment
+conda activate sd
+# Validate environment is selected
+conda info --env
+# Start local webserver
+./webui.sh
+# Wait for "Running on local URL:  http://127.0.0.1:7860" and open that URI.
+```
+
 下载base model 和 refiner model（每个～6GB）[huggingface网站](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0)
+
+- 将base model 和 refiner model放置在./model/stable-diffusion-webui/中
+
+- 运行./webui.sh 打开url链接http://127.0.0.1:7860，在以下的ui选择框中可以选择对应的model
 
 base model作为训练或推理时的底模使用
 
@@ -232,10 +254,232 @@ refiner model仅在推理时使用
 
 ![Refiner model selector ](/public/upload/SDXL/9.png)
 
-- **Checkpoint**: 选择refiner model
+### 根据模型调参生图
+
+- **Resolution**: 1024 x 1024 
 
 - **Switch at**: 切换位置，该值控制在哪一步切换到refiner model。例如，在 0.5 时切换并使用 40 个步骤表示在前 20 个步骤中使用base model，在后 20 个步骤中使用refiner model。
 
   如果切换到 1，则只使用base model。
 
-经验最优值为**30 steps** and **switch at 0.6**
+- **Sampling Steps**：经验最优值为**30 steps** and **switch at 0.6**
+
+![](/public/upload/SDXL/10.png)
+
+- **Clip skip**: 1 or 2
+- **CFG scale**: 7
+- **Denoising strength**:  根据实际需求调整
+
+![](/public/upload/SDXL/11.png)
+
+- 增加选择已训练的lora和hypernetwork模型可以实现更多自定义功能
+
+### 训练自定义模型
+
+#### 准备数据集
+
+根据需要训练的标签来命名文件夹，例如选取的标签名称有：
+
+文件存放的示意结构如下
+
+```
+weipin
+├── qzy
+│   ├── flawless
+│   │   ├── xxx1.jpg
+│   │   ├── xxx2.jpg
+│   │   ├── xxx3.jpg
+│   ├── flawed
+│   │   ├── fold
+│   │   │   ├── xxx1.jpg
+│   │   │   ├── xxx2.jpg
+│   │   ├── spot
+│   │   │   ├── xxx1.jpg
+│   │   │   ├── xxx2.jpg
+├── lsbr
+│   ├── flawless
+│   │   ├── xxx1.jpg
+│   │   ├── xxx2.jpg
+│   │   ├── xxx3.jpg
+│   ├── flawed
+│   │   ├── fold
+│   │   │   ├── xxx1.jpg
+│   │   │   ├── xxx2.jpg
+│   │   ├── spot
+│   │   │   ├── xxx1.jpg
+│   │   │   ├── xxx2.jpg
+
+```
+
+每个末端文件夹中的图片建议数量为5-10张，使用`filename.py`将所有jpg文件重命名为`母文件夹名_子文件夹名_数字编号`的形式，如`qzy_flawed_spot_数字编号`并将所有图片文件归到一个文件夹下
+
+```
+train_output
+├── qzy_flawed_spot_01.jpg
+├── qzy_flawed_spot_02.jpg
+├── qzy_flawed_spot_03.jpg
+├── lsbr_flawless_01.jpg
+```
+
+```python
+####filename.py
+
+import os
+import shutil
+
+def rename_and_copy_files(source_folder, destination_folder):
+    for root, dirs, files in os.walk(source_folder):
+        if files:  # 只处理当前文件夹中包含文件的情况
+            folder_names = os.path.normpath(root).split(os.path.sep)  # 获取文件夹路径并拆分为名称列表
+            new_name = "_".join(folder_names[1:])  # 使用下划线将文件夹名称拼接成新名称
+            i = 1  # 用于追踪重命名文件的数字
+            for file_name in files:
+                file_extension = os.path.splitext(file_name)[1]  # 获取文件扩展名
+                new_file_name = f"{new_name}_{i:02d}{file_extension}"  # 新文件名
+                i += 1
+                file_path = os.path.join(root, file_name)
+                new_file_path = os.path.join(root, new_file_name)
+                os.rename(file_path, new_file_path)
+
+                # 构建目标文件的完整路径
+                destination_file_path = os.path.join(destination_folder, new_file_name)
+
+                # 复制文件到目标文件夹
+                shutil.copy(new_file_path, destination_file_path)
+
+source_folder = 'products'  # 请替换为您的源文件夹路径
+destination_folder = 'zx_train_output'  # 请替换为您的目标文件夹路径
+
+rename_and_copy_files(source_folder, destination_folder)
+
+```
+
+
+
+- 打开webui，使用图片剪裁功能将图片批量剪裁为512 x 512（hypernetwork训练）或1024 x 1024（lora训练）。根据blip处理规则自动重新命名图片文件，并生成与图片名一致的txt文件。
+
+  ![img](/public/upload/SDXL/16.png)
+
+- 通过提取文件名中的关键词，将自动生成的txt文件中的内容修改为将要训练的标签，用逗号隔开。使用`fixtxt.py`批量处理
+
+```python
+### fixtxt.py
+
+import os
+
+# 定义要搜索的文件夹路径
+folder_path = 'zx_train'
+add = 'black background'
+# 遍历文件夹中的所有文件
+for root, dirs, files in os.walk(folder_path):
+    for file in files:
+        if file.endswith('.txt'):
+            file_path = os.path.join(root, file)
+
+            # 提取文件名中的关键词以_作为分隔符
+            keywords = os.path.splitext(file)[0].split('-')[-1].split('_')[:-1]
+
+            keywords.append(add)
+
+            # 将关键词以逗号分隔的形式写入原始文件
+            with open(file_path, 'w') as f:
+                f.write(', '.join(keywords))
+```
+
+经过以上捕捉，训练数据集准备完成
+
+#### 训练hypernetwork模型
+
+可直接在AUTOMATIC1111's Stable Diffusion WebUI中进行。
+
+- 首先在Create hypernetwork中创建一个hypernetwork
+- 然后在train中添加数据集开始训练
+
+![](/public/upload/SDXL/18.png)
+
+数据集结构为：
+
+```
+weipin
+├── xxx1.jpg
+├── xxx1.txt
+├── xxx2.jpg
+├── xxx2.txt
+```
+
+#### 训练lora模型
+
+lora模型的训练需要借助koyha_ss。
+
+- 安装koyha_ss
+
+  ```cmd
+  # 1. clone repo
+  git clone -b sdxl-dev https://github.com/bmaltais/kohya_ss.git
+  
+  # 2. install torch
+  #cu117
+  conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+  #cu118
+  conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+  
+  # 3.install requirements
+  # install with file
+  pip install -r requirements.txt
+  # install without file
+  pip install accelerate==0.19.0 albumentations==1.3.0 altair==4.2.2 dadaptation==3.1 diffusers[torch]==0.18.2 easygui==0.98.3 einops==0.6.0 fairscale==0.4.13 ftfy==6.1.1 gradio==3.36.1 huggingface-hub==0.15.1 lion-pytorch==0.0.6 lycoris_lora==1.8.0 invisible-watermark==0.2.0 open-clip-torch==2.20.0 opencv-python==4.7.0.68 prodigyopt==1.0 pytorch-lightning==1.9.0 rich==13.4.1 safetensors==0.3.1 timm==0.6.12 tk==0.1.0 toml==0.10.2 transformers==4.30.2 voluptuous==0.13.1 wandb==0.15.0 xformers==0.0.20 bitsandbytes==0.35.0 tensorboard==2.12.3 tensorflow==2.12.0
+  # if you are using linux
+  pip install xformers==0.0.20 bitsandbytes==0.35.0 tensorboard==2.12.3 tensorflow==2.12.0
+  ```
+
+- 使用koyha_ss
+
+  - 在根目录下运行
+
+    ```cmd
+    ./gui.sh
+    ```
+
+  - 初始运行会从huggingface.co网站下载各种预训练模型，如果下载失败，运行过程中，大概率报错。因此需要手动下载以下文件夹并根据报错信息将加载模型的路径改为本地的文件夹路径。
+
+    [bert-base-uncased](https://huggingface.co/bert-base-uncased)
+
+    [clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)
+
+    [CLIP-ViT-bigG-14-laion2B-39B-b160k](https://huggingface.co/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k)
+
+  - 打开UI界面
+
+    ![](/public/upload/SDXL/19.png)
+
+    [](/public/upload/SDXL/weipin.json)
+
+    
+
+    训练数据集结构为：
+
+    ```
+    weipin
+    ├── image
+    │   ├── 80_weipin
+    │   │   ├── xxx1.jpg
+    │   │   ├── xxx1.txt
+    │   │   ├── xxx2.jpg
+    │   │   ├── xxx2.txt
+    ├── model
+    ├── log
+    ```
+
+    
+
+    ```cmd
+    rm -rf .ipynb_checkpoints
+    find . -name ".ipynb_checkpoints" -exec rm -rf {} \;  ## 这个在大文件运行后面就都删了 因为.ipynb_checkpoints是文件夹 需要加-rf循环地删除
+    ```
+
+    
+
+  
+
+  
+
