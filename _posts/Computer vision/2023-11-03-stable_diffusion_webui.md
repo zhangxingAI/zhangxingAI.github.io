@@ -1,7 +1,7 @@
 ---
 
 layout: post
-title: Stable Diffusion
+title: Stable Diffusion原理与实践
 category: 计算机视觉
 tags: stable_diffusion
 keywords: stable_diffusion
