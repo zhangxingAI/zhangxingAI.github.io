@@ -27,6 +27,8 @@ typora-root-url: ../..
 
 [从零开始训练专属 LoRA 模型](https://www.uisdc.com/lora-model)
 
+[文生图模型之Stable Diffusion]()
+
 
 
 ## **1 Stable Diffusion XL算法原理**
@@ -53,6 +55,119 @@ Stable Diffusion XL是一个**二阶段的级联扩散模型**，包括Base模�
 
 <img src="/public/upload/SDXL/1.png" alt="SDXL model pipeline" style="zoom:50%;" />
 
+
+
+
+
+### 1.3 VAE模型
+
+VAE模型（变分自编码器，Variational Auto-Encoder）是一个经典的生成式模型。在传统深度学习时代，GAN的风头完全盖过了VAE，但VAE简洁稳定的Encoder-Decoder架构，**以及能够高效提取数据Latent特征的关键能力**，让其跨过了周期，在AIGC时代重新繁荣。
+
+Stable Diffusion XL依旧是**基于Latent**的扩散模型，**所以VAE的Encoder和Decoder结构依旧是Stable Diffusion XL提取图像Latent特征和图像像素级重建的关键一招**。
+
+对于一个大小为$H×W ×3$的输入图像，encoder模块将其编码为一个大小为$h×w ×c$的latent，其中$f = H/h=W/w$为下采样率（downsampling factor）。在ImageNet数据集上训练同样的步数（2M steps），其训练过程的生成质量如下所示，可以看到过小的$f$（比如1和2）下收敛速度慢，此时图像的感知压缩率较小，扩散模型需要较长的学习；而过大的$f$其生成质量较差，此时压缩损失过大。
+
+当$f$在4～16时，可以取得相对好的效果。SD采用基于KL-reg的autoencoder，其中下采样率$f=8$，特征维度为$c=4$，当输入图像为512x512大小时将得到64x64x4大小的latent。 autoencoder模型是在OpenImages数据集上基于256x256大小训练的，但是由于autoencoder的模型是全卷积结构的（基于ResnetBlock，只有模型的中间存在两个self attention层），所以它可以扩展应用在尺寸>256的图像上。下面我们给出使用diffusers库来加载autoencoder模型，并使用autoencoder来实现图像的压缩和重建，代码如下所示：
+
+```python
+import torch
+from diffusers import AutoencoderKL
+import numpy as np
+from PIL import Image
+
+#加载模型: autoencoder可以通过SD权重指定subfolder来单独加载
+autoencoder = AutoencoderKL.from_pretrained("runwayml/stable-diffusion-v1-5", subfolder="vae")
+autoencoder.to("cuda", dtype=torch.float16)
+
+# 读取图像并预处理
+raw_image = Image.open("boy.png").convert("RGB").resize((256, 256))
+image = np.array(raw_image).astype(np.float32) / 127.5 - 1.0
+image = image[None].transpose(0, 3, 1, 2)
+image = torch.from_numpy(image)
+
+# 压缩图像为latent并重建
+with torch.inference_mode():
+    latent = autoencoder.encode(image.to("cuda", dtype=torch.float16)).latent_dist.sample()
+    rec_image = autoencoder.decode(latent).sample
+    rec_image = (rec_image / 2 + 0.5).clamp(0, 1)
+    rec_image = rec_image.cpu().permute(0, 2, 3, 1).numpy()
+    rec_image = (rec_image * 255).round().astype("uint8")
+    rec_image = Image.fromarray(rec_image[0])
+rec_image
+```
+
+这里给出了两张图片在256x256和512x512下的重建效果对比，如下所示，第一列为原始图片，第二列为512x512尺寸下的重建图，第三列为256x256尺寸下的重建图。对比可以看出，autoencoder将图片压缩到latent后再重建其实是有损的，比如会出现文字和人脸的畸变，在256x256分辨率下是比较明显的，512x512下效果会好很多。
+
+![img](/public/upload/SDXL/24.jpg)
+
+![img](/public/upload/SDXL/25.jpg)
+
+这种有损压缩肯定是对SD的生成图像质量是有一定影响的，不过好在SD模型基本上是在512x512以上分辨率下使用的。为了改善这种畸变，stabilityai在发布SD 2.0时同时发布了两个在LAION子数据集上[精调的autoencoder](https://link.zhihu.com/?target=https%3A//huggingface.co/stabilityai/sd-vae-ft-mse-original)，注意这里只精调autoencoder的decoder部分，SD的UNet在训练过程只需要encoder部分，所以这样精调后的autoencoder可以直接用在先前训练好的UNet上（这种技巧还是比较通用的，比如谷歌的[Parti](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/2206.10789)也是在训练好后自回归生成模型后，扩大并精调ViT-VQGAN的decoder模块来提升生成质量）。
+
+在损失函数方面，使用了久经考验的**生成领域“交叉熵”—感知损失（perceptual loss）**以及回归损失来约束VAE的训练过程。
+
+同时由于SD采用的autoencoder是基于KL-reg的，所以这个autoencoder在编码图像时其实得到的是一个高斯分布[DiagonalGaussianDistribution](https://link.zhihu.com/?target=https%3A//github.com/huggingface/diffusers/blob/bbab8553224d12f7fd58b0e65b0daf899769ef0b/src/diffusers/models/vae.py%23L312)（分布的均值和标准差），然后通过调用sample方法来采样一个具体的latent（调用mode方法可以得到均值）。由于KL-reg的权重系数非常小，实际得到latent的标准差还是比较大的，latent diffusion论文中提出了一种rescaling方法：首先计算出第一个batch数据中的latent的标准差$\hat{\sigma}$，然后采用$1/\hat{\sigma}$的系数来rescale latent，这样就尽量保证latent的标准差接近1（防止扩散过程的SNR较高，影响生成效果，具体见latent diffusion论文的D1部分讨论），然后扩散模型也是应用在rescaling的latent上，在解码时只需要将生成的latent除以$1/\hat{\sigma}$，然后再送入autoencoder的decoder即可。对于SD所使用的autoencoder，这个rescaling系数为0.18215。
+
+
+
+当输入是图片时，Stable Diffusion XL和Stable Diffusion一样，首先会使用VAE的**Encoder结构将输入图像转换为Latent特征**，然后U-Net不断对Latent特征进行优化，最后使用VAE的**Decoder结构将Latent特征重建出像素级图像**。除了提取Latent特征和图像的像素级重建外，**VAE还可以改进生成图像中的高频细节，小物体特征和整体图像色彩**。
+
+当Stable Diffusion XL的输入是文字时，这时我们不需要VAE的Encoder结构，只需要Decoder进行图像重建。VAE的灵活运用，让Stable Diffusion系列增添了几分优雅。
+
+**Stable Diffusion XL使用了和之前Stable Diffusion系列一样的VAE结构**，但在训练中选择了**更大的Batch-Size（256 vs 9）**，并且对模型进行指数滑动平均操作（**EMA**，exponential moving average），EMA对模型的参数做平均，从而提高性能并增加模型鲁棒性。
+
+![img](/public/upload/SDXL/3.png)
+
+与此同时，VAE的**缩放系数**也产生了变化。VAE在将Latent特征送入U-Net之前，需要对Latent特征进行缩放让其标准差尽量为1，之前的Stable Diffusion系列采用的**缩放系数为0.18215，**由于Stable Diffusion XL的VAE进行了全面的重训练，所以**缩放系数重新设置为0.13025**。
+
+注意：由于缩放系数的改变，Stable Diffusion XL VAE模型与之前的Stable Diffusion系列并不兼容。
+
+
+
+### 1.4 CLIP Text Encoder模型
+
+**CLIP模型主要包含Text Encoder和Image Encoder两个模块**，在Stable Diffusion XL中，和之前的Stable Diffusion系列一样，**只使用Text Encoder模块从文本信息中提取Text Embeddings**。
+
+**不过Stable Diffusion XL与之前的系列相比，使用了两个CLIP Text Encoder，分别是OpenCLIP ViT-bigG（1.39G）和OpenAI CLIP ViT-L（246M），从而大大增强了Stable Diffusion XL对文本的提取和理解能力。**
+
+其中OpenCLIP ViT-bigG是一个只由Transformer模块组成的模型，一共有32个CLIPEncoder模块，是一个强力的特征提取模型。
+
+OpenAI CLIP ViT-L同样是一个只由Transformer模块组成的模型，一共有12个CLIPEncoder模块，特征维度为768，模型参数大小是123M。
+
+OpenCLIP ViT-bigG的优势在于模型结构更深，特征维度更大，特征提取能力更强，但是其两者的基本CLIPEncoder模块是一样的。
+
+对于输入text，送入CLIP text encoder后得到最后的hidden states（即最后一个transformer block得到的特征），其特征维度大小为77x768（77是token的数量），**这个细粒度的text embeddings将以cross attention的方式送入UNet中**。在transofmers库中，可以如下使用CLIP text encoder：
+
+```python
+from transformers import CLIPTextModel, CLIPTokenizer
+
+text_encoder = CLIPTextModel.from_pretrained("runwayml/stable-diffusion-v1-5", subfolder="text_encoder").to("cuda")
+# text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14").to("cuda")
+tokenizer = CLIPTokenizer.from_pretrained("runwayml/stable-diffusion-v1-5", subfolder="tokenizer")
+# tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
+
+# 对输入的text进行tokenize，得到对应的token ids
+prompt = "a photograph of an astronaut riding a horse"
+text_input_ids = text_tokenizer(
+    prompt,
+    padding="max_length",
+    max_length=tokenizer.model_max_length,
+    truncation=True,
+    return_tensors="pt"
+).input_ids
+
+# 将token ids送入text model得到77x768的特征
+text_embeddings = text_encoder(text_input_ids.to("cuda"))[0]
+```
+
+值得注意的是，这里的tokenizer最大长度为77（CLIP训练时所采用的设置），当输入text的tokens数量超过77后，将进行截断，如果不足则进行paddings，这样将保证无论输入任何长度的文本（甚至是空文本）都得到77x768大小的特征。 在训练SD的过程中，**CLIP text encoder模型是冻结的**。在早期的工作中，比如OpenAI的[GLIDE](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/2112.10741)和latent diffusion中的LDM均采用一个随机初始化的tranformer模型来提取text的特征，但是最新的工作都是采用预训练好的text model。比如谷歌的Imagen采用纯文本模型T5 encoder来提出文本特征，而SD则采用CLIP text encoder，预训练好的模型往往已经在大规模数据集上进行了训练，它们要比直接采用一个从零训练好的模型要好。
+
+**与传统深度学习中的模型融合类似**，Stable Diffusion XL分别提取两个Text Encoder的倒数第二层特征，并进行concat操作作为文本条件（Text Conditioning）。其中OpenCLIP ViT-bigG的特征维度为77x1280，而CLIP ViT-L的特征维度是77x768，所以输入总的特征维度是77x2048（77是最大的token数），再通过Cross Attention模块将文本信息传入Stable Diffusion XL的训练过程与推理过程中。
+
+
+
+### 1.5 U-net
+
 ![](/public/upload/SDXL/2.png)
 
 1. **GSC模块：**Stable Diffusion Base XL U-Net中的最小组件之一，由GroupNorm+SiLU+Conv三者组成。
@@ -70,7 +185,7 @@ Stable Diffusion XL是一个**二阶段的级联扩散模型**，包括Base模�
 13. **CrossAttnUpBlock_X_K模块：**是Stable Diffusion XL Base U-Net中Decoder部分的主要模块，由K个**（ResNetBlock模块+SDXL_Spatial Transformer_X模块）**+UpSample模块组成。
 14. **CrossAttnMidBlock模块：**是Stable Diffusion XL Base U-Net中Encoder和ecoder连接的部分，由ResNetBlock+**SDXL_Spatial Transformer_10**+ResNetBlock组成。
 
-可以看到，其中增加的**SDXL_Spatial Transformer_X模块（主要包含Self Attention + Cross Attention + FeedForward）**数量占新增参数量的主要部分，Rocky在上表中已经用红色框圈出。U-Net的Encoder和Decoder结构也从原来的4stage改成3stage（[1,1,1,1] -> [0,2,10]），说明SDXL只使用两次下采样和上采样，而之前的SD系列模型都是三次下采样和上采样。并且比起Stable DiffusionV1/2，Stable Diffusion XL在第一个stage中不再使用Spatial Transformer Blocks，而在第二和第三个stage中大量增加了Spatial Transformer Blocks（分别是2和10），**那么这样设计有什么好处呢？**
+可以看到，其中增加的**SDXL_Spatial Transformer_X模块（主要包含Self Attention + Cross Attention + FeedForward）**数量占新增参数量的主要部分，在上表中已经用红色框圈出。U-Net的Encoder和Decoder结构也从原来的4stage改成3stage（[1,1,1,1] -> [0,2,10]），说明SDXL只使用两次下采样和上采样，而之前的SD系列模型都是三次下采样和上采样。并且比起Stable DiffusionV1/2，Stable Diffusion XL在第一个stage中不再使用Spatial Transformer Blocks，而在第二和第三个stage中大量增加了Spatial Transformer Blocks（分别是2和10），**那么这样设计有什么好处呢？**
 
 首先，**在第一个stage中不使用SDXL_Spatial Transformer_X模块，可以明显减少显存占用和计算量。**然后在第二和第三个stage这两个维度较小的feature map上使用数量较多的SDXL_Spatial Transformer_X模块，能**在大幅提升模型整体性能（学习能力和表达能力）的同时，优化了计算成本**。整个新的SDXL Base U-Net设计思想也让SDXL的Base出图分辨率提升至1024x1024。在参数保持一致的情况下，**Stable Diffusion XL生成图片的耗时只比Stable Diffusion多了20%-30%之间，这个拥有2.6B参数量的模型已经足够伟大**。
 
@@ -79,40 +194,6 @@ Stable Diffusion XL是一个**二阶段的级联扩散模型**，包括Base模�
 **BasicTransformer Block模块是整个框架的基石，由SelfAttention，CrossAttention和FeedForward三个组件构成，并且使用了循环残差模式，让SDXL Base U-Net不仅可以设计的更深，同时也具备更强的文本特征和图像体征的学习能力**。
 
 **Stable Diffusion XL中的Text Condition信息由两个Text Encoder提供（OpenCLIP ViT-bigG和OpenAI CLIP ViT-L）**，通过Cross Attention组件嵌入，作为K Matrix和V Matrix。与此同时，图片的Latent Feature作为Q Matrix。
-
-### 1.3 VAE模型
-
-VAE模型（变分自编码器，Variational Auto-Encoder）是一个经典的生成式模型。在传统深度学习时代，GAN的风头完全盖过了VAE，但VAE简洁稳定的Encoder-Decoder架构，**以及能够高效提取数据Latent特征的关键能力**，让其跨过了周期，在AIGC时代重新繁荣。
-
-Stable Diffusion XL依旧是**基于Latent**的扩散模型，**所以VAE的Encoder和Decoder结构依旧是Stable Diffusion XL提取图像Latent特征和图像像素级重建的关键一招**。
-
-当输入是图片时，Stable Diffusion XL和Stable Diffusion一样，首先会使用VAE的**Encoder结构将输入图像转换为Latent特征**，然后U-Net不断对Latent特征进行优化，最后使用VAE的**Decoder结构将Latent特征重建出像素级图像**。除了提取Latent特征和图像的像素级重建外，**VAE还可以改进生成图像中的高频细节，小物体特征和整体图像色彩**。
-
-当Stable Diffusion XL的输入是文字时，这时我们不需要VAE的Encoder结构，只需要Decoder进行图像重建。VAE的灵活运用，让Stable Diffusion系列增添了几分优雅。
-
-**Stable Diffusion XL使用了和之前Stable Diffusion系列一样的VAE结构**，但在训练中选择了**更大的Batch-Size（256 vs 9）**，并且对模型进行指数滑动平均操作（**EMA**，exponential moving average），EMA对模型的参数做平均，从而提高性能并增加模型鲁棒性。
-
-![img](/public/upload/SDXL/3.png)
-
-在损失函数方面，使用了久经考验的**生成领域“交叉熵”—感知损失（perceptual loss）**以及回归损失来约束VAE的训练过程。
-
-与此同时，VAE的**缩放系数**也产生了变化。VAE在将Latent特征送入U-Net之前，需要对Latent特征进行缩放让其标准差尽量为1，之前的Stable Diffusion系列采用的**缩放系数为0.18215，**由于Stable Diffusion XL的VAE进行了全面的重训练，所以**缩放系数重新设置为0.13025**。
-
-注意：由于缩放系数的改变，Stable Diffusion XL VAE模型与之前的Stable Diffusion系列并不兼容。
-
-### 1.4 CLIP Text Encoder模型
-
-**CLIP模型主要包含Text Encoder和Image Encoder两个模块**，在Stable Diffusion XL中，和之前的Stable Diffusion系列一样，**只使用Text Encoder模块从文本信息中提取Text Embeddings**。
-
-**不过Stable Diffusion XL与之前的系列相比，使用了两个CLIP Text Encoder，分别是OpenCLIP ViT-bigG（1.39G）和OpenAI CLIP ViT-L（246M），从而大大增强了Stable Diffusion XL对文本的提取和理解能力。**
-
-其中OpenCLIP ViT-bigG是一个只由Transformer模块组成的模型，一共有32个CLIPEncoder模块，是一个强力的特征提取模型。
-
-OpenAI CLIP ViT-L同样是一个只由Transformer模块组成的模型，一共有12个CLIPEncoder模块。
-
-OpenCLIP ViT-bigG的优势在于模型结构更深，特征维度更大，特征提取能力更强，但是其两者的基本CLIPEncoder模块是一样的。
-
-**与传统深度学习中的模型融合类似**，Stable Diffusion XL分别提取两个Text Encoder的倒数第二层特征，并进行concat操作作为文本条件（Text Conditioning）。其中OpenCLIP ViT-bigG的特征维度为77x1280，而CLIP ViT-L的特征维度是77x768，所以输入总的特征维度是77x2048（77是最大的token数），再通过Cross Attention模块将文本信息传入Stable Diffusion XL的训练过程与推理过程中。
 
 ### 1.5 Refiner模型
 
@@ -146,7 +227,26 @@ DeepFloyd和StabilityAI联合开发的DeepFloyd IF**是一种基于像素的文�
 
 ### 2.1 checkpoint模型
 
-checkpoint模型是真正意义上的Stable Diffusion模型，它们包含生成图像所需的一切（TextEncoder， U-net， VAE），不需要额外的文件。但是它们体积很大，通常为2G-7 G。官方的Stable Diffusion v1-5 版本模型的训练使用了 256 个 40G 的 A100 GPU，合计耗时 15 万个 GPU 小时（约 17 年），总成本达到了 60 万美元。除此之外，为了验证模型的出图效果，伴随着上万名测试人员每天 170 万张的出图测试。Stable Diffusion 作为专注于图像生成领域的大模型，它的目的并不是直接进行绘图，而是通过学习海量的图像数据来做预训练，提升模型整体的基础知识水平，这样就能以强大的通用性和实用性状态完成后续下游任务的应用。Stable Diffusion 官方模型的真正价值在于降低了模型训练的门槛，因为在现有大模型基础上训练新模型的成本要低得多。对特定图片生成任务来说，只需在官方模型基础上加上少量的文本图像数据，并配合微调模型的训练方法，就能得到应用于特定领域的定制模型。一方面训练成本大大降低，只需在本地用一张民用级显卡训练几小时就能获得稳定出图的定制化模型，另一方面，针对特定方向训练模型的理解和绘图能力更强，实际的出图效果反而有了极大的提升。
+checkpoint模型是真正意义上的Stable Diffusion模型，它们包含生成图像所需的一切（TextEncoder， U-net， VAE），不需要额外的文件。但是它们体积很大，通常为2G-7G。Stable Diffusion 作为专注于图像生成领域的大模型，它的目的并不是直接进行绘图，而是通过学习海量的图像数据来做预训练，提升模型整体的基础知识水平，这样就能以强大的通用性和实用性状态完成后续下游任务的应用。Stable Diffusion 官方模型的真正价值在于降低了模型训练的门槛，因为在现有大模型基础上训练新模型的成本要低得多。对特定图片生成任务来说，只需在官方模型基础上加上少量的文本图像数据，并配合微调模型的训练方法，就能得到应用于特定领域的定制模型。一方面训练成本大大降低，只需在本地用一张民用级显卡训练几小时就能获得稳定出图的定制化模型，另一方面，针对特定方向训练模型的理解和绘图能力更强，实际的出图效果反而有了极大的提升。
+
+官方模型是在[laion2B-en](https://link.zhihu.com/?target=https%3A//huggingface.co/datasets/laion/laion2B-en)**数据集**上训练的，它是[laion-5b](https://link.zhihu.com/?target=https%3A//laion.ai/blog/laion-5b/)**数据集**的一个子集，更具体的说它是laion-5b中的英文（文本为英文）数据集。laion-5b数据集是从网页数据Common Crawl中筛选出来的图像-文本对数据集，它包含5.85B的图像-文本对，其中文本为英文的数据量为2.32B，这就是laion2B-en数据集。
+
+laion数据集中除了图片（下载URL，图像width和height）和文本（描述文本）的元信息外，还包含以下信息：
+
+- similarity：使用CLIP ViT-B/32计算出来的图像和文本余弦相似度；
+- pwatermark：使用一个图片[水印检测器](https://link.zhihu.com/?target=https%3A//github.com/LAION-AI/LAION-5B-WatermarkDetection)检测的概率值，表示图片含有水印的概率；
+- punsafe：图片是否安全，或者图片是不是NSFW，使用[基于CLIP的检测器](https://link.zhihu.com/?target=https%3A//github.com/LAION-AI/CLIP-based-NSFW-Detector)来估计；
+- AESTHETIC_SCORE：图片的美学评分（1-10），这个是后来追加的，首先选择一小部分图片数据集让人对图片的美学打分，然后基于这个标注数据集来训练一个[打分模型](https://link.zhihu.com/?target=https%3A//laion.ai/blog/laion-aesthetics/)，并对所有样本计算估计的美学评分。
+
+上面是laion数据集的情况，下面我们来介绍SD训练数据集的具体情况，**SD的训练是多阶段的**（先在256x256尺寸上预训练，然后在512x512尺寸上精调），不同的阶段产生了不同的版本：
+
+- SD v1.1：在laion2B-en数据集上以256x256大小训练237,000步，上面我们已经说了，laion2B-en数据集中256以上的样本量共1324M；然后在laion5B的[高分辨率数据集](https://link.zhihu.com/?target=https%3A//huggingface.co/datasets/laion/laion-high-resolution)以512x512尺寸训练194,000步，这里的高分辨率数据集是图像尺寸在1024x1024以上，共170M样本。
+- SD v1.2：以SD v1.1为初始权重，在[improved_aesthetics_5plus](https://link.zhihu.com/?target=https%3A//huggingface.co/datasets/ChristophSchuhmann/improved_aesthetics_5plus)数据集上以512x512尺寸训练515,000步数，这个improved_aesthetics_5plus数据集上laion2B-en数据集中美学评分在5分以上的子集（共约600M样本），注意这里过滤了含有水印的图片（pwatermark>0.5)以及图片尺寸在512x512以下的样本。
+- SD v1.3：以SD v1.2为初始权重，在improved_aesthetics_5plus数据集上继续以512x512尺寸训练195,000步数，不过这里采用了CFG（以10%的概率随机drop掉text）。
+- SD v1.4：以SD v1.2为初始权重，在improved_aesthetics_5plus数据集上采用CFG以512x512尺寸训练225,000步数。
+- SD v1.5：以SD v1.2为初始权重，在improved_aesthetics_5plus数据集上采用CFG以512x512尺寸训练595,000步数。
+
+其实可以看到SD v1.3、SD v1.4和SD v1.5其实是以SD v1.2为起点在improved_aesthetics_5plus数据集上采用CFG训练过程中的不同checkpoints，**目前最常用的版本是SD v1.4和SD v1.5**。 SD的训练是**采用了32台8卡的A100机器**（32 x 8 x A100_40GB GPUs），所需要的训练硬件还是比较多的，但是相比语言大模型还好。单卡的训练batch size为2，并采用gradient accumulation，其中gradient accumulation steps=2，那么训练的**总batch size就是32x8x2x2=2048**。训练**优化器采用AdamW**，训练采用warmup，在初始10,000步后**学习速率升到0.0001**，后面保持不变。至于训练时间，文档上只说了用了150,000小时，这个应该是A100卡时，如果按照256卡A100来算的话，那么大约**需要训练25天左右**。
 
 Checkpoint 模型的常见训练方法叫 Dreambooth，该技术原本由谷歌团队基于自家的 Imagen 模型开发，后来经过适配被引入 Stable Diffusion 模型中，并逐渐被广泛应用。![12](/public/upload/SDXL/12.png)
 
@@ -166,17 +266,181 @@ LoRA 模型是用于修改图片风格的checkpoint模型的小补丁文件。�
 
 Hypernetwork是添加到checkpoint模型中的附加网络模块。它们通常为5-300 MB。必须与checkpoint模型一起使用。它的原理是在扩散模型之外新建一个神经网络来调整模型参数，而这个神经网络也被称为超网络。因为 Hypernetwork 训练过程中同样没有对原模型进行全面微调，因此模型尺寸通常也在几十到几百 MB 不等。它的实际效果，我们可以将其简单理解为低配版的 LoRA，虽然超网络这名字听起来很厉害，但其实这款模型如今的风评并不出众，在国内已逐渐被 lora 所取代。因为它的训练难度很大且应用范围较窄，目前大多用于控制图像画风。所以除非是有特定的画风要求，否则还是建议优先选择 LoRA 模型来使用。![](/public/upload/SDXL/14.png)
 
-## **3 实践**
+## **3 应用**
 
-### 3.1 主流方法
+SD的主要应用包括**文生图**，**图生图**以及**图像inpainting**。其中文生图是SD的基础功能：根据输入文本生成相应的图像，而图生图和图像inpainting是在文生图的基础上延伸出来的两个功能。
+
+### 3.1 文生图
+
+根据文本生成图像这是文生图的最核心的功能，下图为SD的文生图的推理流程图：首先根据输入text用text encoder提取text embeddings，同时初始化一个随机噪音noise（latent上的，512x512图像对应的noise维度为64x64x4），然后将text embeddings和noise送入扩散模型UNet中生成去噪后的latent，最后送入autoencoder的decoder模块得到生成的图像。
+
+![img](/public/upload/SDXL/26.jpg)
+
+使用diffusers库，我们可以直接调用`StableDiffusionPipeline`来实现文生图，具体代码如下所示
+
+```python
+import torch
+from diffusers import StableDiffusionPipeline
+from PIL import Image
+
+# 组合图像，生成grid
+def image_grid(imgs, rows, cols):
+    assert len(imgs) == rows*cols
+
+    w, h = imgs[0].size
+    grid = Image.new('RGB', size=(cols*w, rows*h))
+    grid_w, grid_h = grid.size
+    
+    for i, img in enumerate(imgs):
+        grid.paste(img, box=(i%cols*w, i//cols*h))
+    return grid
+
+# 加载文生图pipeline
+pipe = StableDiffusionPipeline.from_pretrained(
+    "runwayml/stable-diffusion-v1-5", # 或者使用 SD v1.4: "CompVis/stable-diffusion-v1-4"
+    torch_dtype=torch.float16
+).to("cuda")
+
+# 输入text，这里text又称为prompt
+prompts = [
+    "a photograph of an astronaut riding a horse",
+    "A cute otter in a rainbow whirlpool holding shells, watercolor",
+    "An avocado armchair",
+    "A white dog wearing sunglasses"
+]
+
+generator = torch.Generator("cuda").manual_seed(42) # 定义随机seed，保证可重复性
+
+# 执行推理
+images = pipe(
+    prompts,
+    height=512,
+    width=512,
+    num_inference_steps=50,
+    guidance_scale=7.5,
+    negative_prompt=None,
+    num_images_per_prompt=1,
+    generator=generator
+).images
+
+grid = image_grid(images, rows=1, cols=4)
+grid
+```
+
+生成的图像效果如下所示：
+
+![img](/public/upload/SDXL/28.png)
+
+这里可以通过指定width和height来决定生成图像的大小，前面说过SD最后是在512x512尺度上训练的，所以生成512x512尺寸效果是最好的，但是实际上SD可以生成任意尺寸的图片：一方面autoencoder支持任意尺寸的图片的编码和解码，另外一方面扩散模型UNet也是支持任意尺寸的latents生成的（UNet是卷积+attention的混合结构）。然而，生成512x512以外的图片会存在一些问题，比如生成低分辨率图像时，图像的质量大幅度下降，下图为同样的文本在256x256尺寸下的生成效果：
+
+![img](/public/upload/SDXL/27.jpg)
+
+如果是生成512x512以上分辨率的图像，图像质量虽然没问题，但是可能会出现重复物体以及物体被拉长的情况，下图为分别为768x512和512x768尺寸下的生成效果，可以看到部分图像存在一定的问题：
+
+![img](/public/upload/SDXL/29.png)
+
+![img](/public/upload/SDXL/30.png)
+
+所以虽然SD的架构上支持任意尺寸的图像生成，但训练是在固定尺寸上（512x512），生成其它尺寸图像还是会存在一定的问题。解决这个问题的办法就相对比较简单，就是采用多尺度策略训练，比如NovelAI提出采用[Aspect Ratio Bucketing](https://link.zhihu.com/?target=https%3A//github.com/NovelAI/novelai-aspect-ratio-bucketing)策略来在二次元数据集上精调模型，这样得到的模型就很大程度上避免SD的这个问题，目前大部分开源的基于SD的精调模型往往都采用类似的多尺度策略来精调。比如我们采用开源的[dreamlike-diffusion-1.0](https://link.zhihu.com/?target=https%3A//huggingface.co/dreamlike-art/dreamlike-diffusion-1.0)模型（基于SD v1.5精调的），其生成的图像效果在变尺寸上就好很多。
+
+### 3.1 图生图
+
+**图生图（image2image）是对文生图功能的一个扩展**，这个功能来源于[SDEdit](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/2108.01073)这个工作，其核心思路也非常简单：给定一个笔画的色块图像，可以先给它加一定的高斯噪音（执行扩散过程）得到噪音图像，然后基于扩散模型对这个噪音图像进行去噪，就可以生成新的图像，但是这个图像在结构和布局和输入图像基本一致。
+
+![img](/public/upload/SDXL/31.png)
+
+对于SD来说，图生图的流程图如下所示，相比文生图流程来说，这里的初始latent不再是一个随机噪音，而是由初始图像经过autoencoder编码之后的latent加高斯噪音得到，这里的加噪过程就是扩散过程。要注意的是，去噪过程的步数要和加噪过程的步数一致，就是说你加了多少噪音，就应该去掉多少噪音，这样才能生成想要的无噪音图像。
+
+![img](/public/upload/SDXL/32.png)
+
+在diffusers中，我们可以使用`StableDiffusionImg2ImgPipeline`来实现文生图，具体代码如下所示：
+
+```python
+
+import torch
+from diffusers import StableDiffusionImg2ImgPipeline
+from PIL import Image
+
+# 加载图生图pipeline
+model_id = "runwayml/stable-diffusion-v1-5"
+pipe = StableDiffusionImg2ImgPipeline.from_pretrained(model_id, torch_dtype=torch.float16).to("cuda")
+
+# 读取初始图片
+init_image = Image.open("init_image.png").convert("RGB")
+
+# 推理
+prompt = "A fantasy landscape, trending on artstation"
+generator = torch.Generator(device="cuda").manual_seed(2023)
+
+image = pipe(
+    prompt=prompt,
+    image=init_image,
+    strength=0.8,
+    guidance_scale=7.5,
+    generator=generator
+).images[0]
+image
+```
+
+相比文生图的pipeline，图生图的pipeline还多了一个参数`strength`，这个参数介于0-1之间，表示对输入图片加噪音的程度，这个值越大加的噪音越多，对原始图片的破坏也就越大，当strength=1时，其实就变成了一个随机噪音，此时就相当于纯粹的文生图pipeline了。下面展示了一个具体的实例，这里的第一张图为输入的初始图片，它是一个笔画的色块，我们可以通过图生图将它生成一幅具体的图像，其中第2张图和第3张图的strength分别是0.5和0.8，可以看到当strength=0.5时，生成的图像和原图比较一致，但是就比较简单了，当strength=0.8时，生成的图像偏离原图更多，但是图像的质感有一个明显的提升。
+
+![img](/public/upload/SDXL/33.png)
+
+图生图这个功能一个更广泛的应用是在风格转换上，比如给定一张人像，想生成动漫风格的图像。这里我们可以使用动漫风格的开源模型[anything-v4.0](https://link.zhihu.com/?target=https%3A//huggingface.co/andite/anything-v4.0)，它是基于SD v1.5在动漫风格数据集上finetune的，使用它可以更好地利用图生图将人物动漫化。下面的第1张为输入人物图像，采用的prompt为"masterpiece, best quality, 1girl, red hair, medium hair, green eyes"，后面的图像是strength分别为0.3-0.9下生成的图像。可以看到在不同的strength下图像有不同的生成效果，其中strength=0.6时效果最好。
+
+![img](/public/upload/SDXL/34.png)
+
+### 3.3 **图像inpainting**
+
+最后我们一项功能是图像inpainting，它和图生图一样也是文生图功能的一个扩展。SD的图像inpainting不是用在图像修复上，而是主要用在**图像编辑**上：给定一个输入图像和想要编辑的区域mask，我们想通过文生图来编辑mask区域的内容。SD的图像inpainting原理可以参考论文[Blended Latent Diffusion](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/2206.02779)，其主要原理图如下所示：
+
+![img](/public/upload/SDXL/35.webp)
+
+它和图生图一样：首先将输入图像通过autoencoder编码为latent，然后加入一定的高斯噪音生成noisy latent，再进行去噪生成图像，但是这里为了保证mask以外的区域不发生变化，**在去噪过程的每一步，都将扩散模型预测的noisy latent用真实图像同level的nosiy latent替换**。 在diffusers中，使用`StableDiffusionInpaintPipelineLegacy`可以实现文本引导下的图像inpainting，具体代码如下所示：
+
+```python
+import torch
+from diffusers import StableDiffusionInpaintPipelineLegacy
+from PIL import Image
+
+# 加载inpainting pipeline
+model_id = "runwayml/stable-diffusion-v1-5"
+pipe = StableDiffusionInpaintPipelineLegacy.from_pretrained(model_id, torch_dtype=torch.float16).to("cuda")
+
+# 读取输入图像和输入mask
+input_image = Image.open("overture-creations-5sI6fQgYIuo.png").resize((512, 512))
+input_mask = Image.open("overture-creations-5sI6fQgYIuo_mask.png").resize((512, 512))
+
+# 执行推理
+prompt = ["a mecha robot sitting on a bench", "a cat sitting on a bench"]
+generator = torch.Generator("cuda").manual_seed(0)
+
+with torch.autocast("cuda"):
+    images = pipe(
+        prompt=prompt,
+        image=input_image,
+        mask_image=input_mask,
+        num_inference_steps=50,
+        strength=0.75,
+        guidance_scale=7.5,
+        num_images_per_prompt=1,
+        generator=generator,
+    ).images
+```
+
+
+
+## **4 实践**
+
+### 4.1 主流方法
 目前可以在本地运行SDXL的主流方法为
 
-- **[AUTOMATIC1111's Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui)**最流行的 WebUI，拥有最多的功能和扩展，最容易学习。本说明书将使用此方法
+- **[AUTOMATIC1111's Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui)** 基于[gradio](https://link.zhihu.com/?target=https%3A//gradio.app/)框架实现了SD的快速部署，不仅支持SD的最基础的文生图、图生图以及图像inpainting功能，还支持SD的其它拓展功能，很多基于SD的拓展应用可以用插件的方式安装在webui上。本说明书将使用此方法。
 - **[ComfyUI ](https://github.com/comfyanonymous/ComfyUI)**上手较难，node based interface，但生成速度非常快，比 AUTOMATIC1111 快 5-10 倍。允许使用两种不同的正向提示。
 
-### 3.2 AUTOMATIC1111使用方法
+### 4.2 AUTOMATIC1111使用方法
 
-#### 3.2.1  Install AUTOMATIC1111 on Linux
+#### 4.2.1  Install AUTOMATIC1111 on Linux
 
 ```cmd
 # Create environment
@@ -190,7 +454,7 @@ conda info --env
 # Wait for "Running on local URL:  http://127.0.0.1:7860" and open that URI.
 ```
 
-#### 3.2.2  下载模型
+#### 4.2.2  下载模型
 
 下载base model 和 refiner model（每个～6GB）[huggingface网站](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0)
 
@@ -212,7 +476,7 @@ refiner model仅在推理时使用
 
 <img src="/public/upload/SDXL/9.png" alt="Refiner model selector " style="zoom: 50%;" />
 
-#### 3.2.2 调参生图
+#### 4.2.2 调参生图
 
 - **Resolution**: 1024 x 1024 
 
@@ -229,13 +493,23 @@ refiner model仅在推理时使用
 <img src="/public/upload/SDXL/10.png" style="zoom:33%;" />
 
 - **Clip skip**: 1 or 2
+
 - **Sampling method** 扩散去噪算法的采样模式，会带来不一样的效果，ddim 和 pms(plms) 的结果差异会很大，很多人还会使用euler，具体没有系统测试。
+
 - **Tiling** 生成一个可以平铺的图像；
 
   **Highres. fix** 使用两个步骤的过程进行生成，以较小的分辨率创建图像，然后在不改变构图的情况下改进其中的细节，选择该部分会有两个新的参数
-- **CFG scale**: 7。分类器自由引导尺度——图像与提示符的一致程度——越低的值产生越有创意的结果；
+  
+- **CFG scale**: 7。越大时，生成的图像应该会和输入文本更一致，当guidance_scale较低时生成的图像效果是比较差的，**当guidance_scale在7～9时，生成的图像效果是可以的**，当采用更大的guidance_scale比如11，图像的色彩过饱和而看起来不自然，过大的guidance_scale之所以出现问题，主要是由于训练和测试的不一致，过大的guidance_scale会导致生成的样本超出范围。所以SD**默认采用的guidance_scale为7.5**。
+
+  下图为guidance_scale为1，3，5，7，9和11下生成的图像对比
+
+  ![img](/public/upload/SDXL/36.png)
+
 - **Seed** 种子数，只要种子数一样，参数一致、模型一样图像就能重新被绘制；
--  **Scale latent** 在潜空间中对图像进行缩放。另一种方法是从潜在的表象中产生完整的图像，将其升级，然后将其移回潜在的空间。
+
+- **Scale latent** 在潜空间中对图像进行缩放。另一种方法是从潜在的表象中产生完整的图像，将其升级，然后将其移回潜在的空间。
+
 - **Denoising strength**:  决定算法对图像内容的保留程度。在0处，什么都不会改变，而在1处，会得到一个不相关的图像。一般大于0.7出来的都是新效果，小于0.3基本就会原图缝缝补补；
 
 <img src="/public/upload/SDXL/11.png" style="zoom:33%;" />
@@ -266,9 +540,9 @@ refiner model仅在推理时使用
 
 <img src="./public/upload/SDXL/23.jpg" style="zoom:50%;" />
 
-### 3.3 训练自定义模型
+### 4.3 训练自定义模型
 
-#### 3.3.1 准备数据集
+#### 4.3.1 准备数据集
 
 根据需要训练的标签来命名文件夹，例如选取的训练标签名称有：qzy, lsbr, flawless, flawed, fold, spot
 
@@ -380,7 +654,7 @@ for root, dirs, files in os.walk(folder_path):
 
 经过以上捕捉，训练数据集准备完成
 
-#### 3.3.2 训练hypernetwork模型
+#### 4.3.2 训练hypernetwork模型
 
 可直接在AUTOMATIC1111's Stable Diffusion WebUI中进行。
 
@@ -399,7 +673,7 @@ weipin
 ├── xxx2.txt
 ```
 
-#### 3.3.3 训练lora模型
+#### 4.3.3 训练lora模型
 
 lora模型的训练需要借助kohya_ss。
 
@@ -485,6 +759,4 @@ lora模型的训练需要借助kohya_ss。
   8. text_encoder_lr：文本编码器的学习率，1e-04
   9. lr_scheduler：学习率调度器，用来控制模型学习率的变化方式，constant_with_warmup。
   10. lr_warmup_steps：升温步数，仅在学习率调度策略为“constant_with_warmup”时设置，用来控制模型在训练前逐渐增加学习率的步数，可以设为10%。
-
-
 
