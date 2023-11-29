@@ -538,7 +538,7 @@ refiner model仅在推理时使用
 
 - 通过对比生成结果，选出表现最佳的模型和权重值。
 
-<img src="./public/upload/SDXL/23.jpg" style="zoom:50%;" />
+<img src="/public/upload/SDXL/23.jpg" style="zoom:50%;" />
 
 ### 4.3 训练自定义模型
 
@@ -748,15 +748,15 @@ lora模型的训练需要借助kohya_ss。
   ```
 
 - LoRA的训练参数
-  1. 底模：填入底模文件夹地址 /content/Lora/sd_model/，刷新加载底模。
+  1. **底模**：填入底模文件夹地址 /content/Lora/sd_model/，刷新加载底模。
      resolution：训练分辨率，支持非正方形，但必须是 64 倍数。一般方图 1024x1024。
-  2. batch_size：一次性送入训练模型的样本数，显存小推荐 1，24G取3-4，并行数量越大，训练速度越快。
-  3. optimizer:  选择AdamW较多
-  4. max_train_epoches：最大训练的 epoch 数，即模型会在整个训练数据集上循环训练的次数。如最大训练 epoch 为 10，那么训练过程中将会进行 10 次完整的训练集循环，一般可以设为 30。
-  5. network_dim：线性 dim，代表模型大小，数值越大模型越精细，常用 128，如果设置为 128，则 LoRA 模型大小为 144M。
-  6. network_alpha：线性 alpha，一般设置为比 Network Dim 小或者相同，通常将 network dim 设置为 128，network alpha 设置为 64。
-  7. unet_lr：unet 学习率，5e-05
-  8. text_encoder_lr：文本编码器的学习率，1e-04
-  9. lr_scheduler：学习率调度器，用来控制模型学习率的变化方式，constant_with_warmup。
-  10. lr_warmup_steps：升温步数，仅在学习率调度策略为“constant_with_warmup”时设置，用来控制模型在训练前逐渐增加学习率的步数，可以设为10%。
+  2. **batch_size**：一次性送入训练模型的样本数，显存小推荐 1，24G取3-4，并行数量越大，训练速度越快。
+  3. **optimizer**:  选择AdamW较多
+  4. **max_train_epoches**：最大训练的 epoch 数，即模型会在整个训练数据集上循环训练的次数。如最大训练 epoch 为 10，那么训练过程中将会进行 10 次完整的训练集循环，一般可以设为 30。
+  5. **network_dim**：线性 dim，代表模型大小，数值越大模型越精细，常用 128，如果设置为 128，则 LoRA 模型大小为 144M。
+  6. **network_alpha**：线性 alpha，一般设置为比 Network Dim 小或者相同，通常将 network dim 设置为 128，network alpha 设置为 64。
+  7. **unet_lr**：unet 学习率，经验数值为text_encode_lr的1/2，5e-05
+  8. **text_encoder_lr**：文本编码器的学习率，1e-04
+  9. **lr_scheduler**：学习率调度器，用来控制模型学习率的变化方式，constant_with_warmup。
+  10. **lr_warmup_steps**：升温步数，仅在学习率调度策略为“constant_with_warmup”时设置，用来控制模型在训练前逐渐增加学习率的步数，可以设为10%。
 

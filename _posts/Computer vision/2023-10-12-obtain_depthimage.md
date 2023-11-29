@@ -134,11 +134,20 @@ csv格式文件可以通过格式转换文件转换为深度图进行yolov8模�
 import csv
 import struct
 import os
-def readpoint(f):
-# 读取CSV文件
+
+def read_point_cloud_from_csv(file_path):
+    """
+    从CSV文件中读取激光点云数据。
+
+    Parameters:
+        file_path (str): CSV文件路径。
+
+    Returns:
+        list: 包含激光点云坐标（二进制）的列表。
+    """
     xlist = []
     points = []
-    with open(f, 'r') as file:
+    with open(file_path, 'r') as file:
         csv_reader = csv.reader(file)
         y_row_index = None
 
@@ -163,72 +172,52 @@ def readpoint(f):
 
     return points
 
-def csvtobin(input_folder, output_folder):
+def convert_csv_to_bin(input_folder, output_folder):
     try:
         # 创建新文件夹
-        os.mkdir(output_folder)
-        print(f"文件夹 '{output_folder}' 已创建成功。")
+        if not os.path.exists(output_folder):
+            os.mkdir(output_folder)
+            print(f"文件夹 '{output_folder}' 已创建成功。")
+        else:
+            print(f"文件夹 '{output_folder}' 已经存在。请提供一个不同的文件夹名称。")
+            return
 
         # 获取输入文件夹中的所有文件
         files = os.listdir(input_folder)
 
-        # 遍历文件夹中的文件
-        for file in files:
-            if file.endswith(".csv"):
-                # 构建源文件路径和目标文件路径
-                bin_file = file.split('.')[0] + '.bin'
-                source_path = os.path.join(input_folder, file)
-                target_path = os.path.join(output_folder, bin_file)
-
-                points = readpoint(source_path)
-
-                with open(target_path, 'wb') as file:
-                    for x, y, z in points:
-                        # 使用struct.pack将浮点数转换为二进制数据，并按需要的格式进行打包
-                        binary_data = struct.pack('fff', x, y, z)
-                        file.write(binary_data)
-                # 将CSV文件复制到新文件夹
-
-                print(f"已转换文件 '{file}' 到文件夹 '{output_folder}'。")
-
-        print("所有CSV文件已成功复制到新文件夹。")
-    except FileExistsError:
-        print(f"文件夹 '{output_folder}' 已经存在。")
-        # 获取输入文件夹中的所有文件
-        files = os.listdir(input_folder)
+        # 初始化计数器
+        file_counter = 0
 
         # 遍历文件夹中的文件
         for file in files:
             if file.endswith(".csv"):
-                # 构建源文件路径和目标文件路径
-                bin_file = file.split('.')[0] + '.bin'
+                bin_file = f"{file_counter:06d}.bin"  # 使用计数器格式化为6位数的字符串
                 source_path = os.path.join(input_folder, file)
                 target_path = os.path.join(output_folder, bin_file)
 
-                points = readpoint(source_path)
+                points = read_point_cloud_from_csv(source_path)
 
                 with open(target_path, 'wb') as file:
-                    for x, y, z in points:
-                        # 使用struct.pack将浮点数转换为二进制数据，并按需要的格式进行打包
-                        binary_data = struct.pack('fff', x, y, z)
+                    for i in range(0, int(len(points) / 2) * 2, 2):
+                        x1, y1, z1 = points[i]
+                        x2, y2, z2 = points[i + 1]
+                        binary_data = struct.pack('ffffffff', x1, y1, z1, 1.0, x2, y2, z2, 1.0)
                         file.write(binary_data)
-                # 将CSV文件复制到新文件夹
 
-                print(f"已转换文件 '{file}' 到文件夹 '{output_folder}'。")
+                print(f"已转换文件 '{file}' 到文件夹 '{output_folder}'，新文件名为 '{bin_file}'。")
+
+                # 增加计数器
+                file_counter += 1
 
         print("所有CSV文件已成功复制到新文件夹。")
     except Exception as e:
         print(f"发生错误：{e}")
-    return
-
 
 # 指定输入文件夹和新建文件夹的名称
 input_folder = "package_depth"  # 你的CSV文件所在的文件夹
-output_folder = "package_depth_bin"  # 新建的文件夹名称
+output_folder = "package_depth_bin2"  # 新建的文件夹名称
 
 # 调用函数来处理CSV文件
-csvtobin(input_folder, output_folder)
-
-
+convert_csv_to_bin(input_folder, output_folder)
 ```
 
