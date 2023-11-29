@@ -3,7 +3,7 @@
 layout: post
 title: Stable Diffusion原理与实践
 category: 计算机视觉
-tags: stable_diffusion
+tags: stable_diffusion hid
 keywords: stable_diffusion
 typora-root-url: ../..
 

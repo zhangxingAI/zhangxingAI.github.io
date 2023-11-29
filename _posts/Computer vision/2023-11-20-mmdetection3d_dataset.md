@@ -3,7 +3,7 @@
 layout: post
 title: 梳理mmdetection3d数据处理代码
 category: 计算机视觉
-tags: mmdetection3d
+tags: mmdetection3d hid
 keywords: 3D detection
 typora-root-url: ../..
 ---

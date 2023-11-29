@@ -3,7 +3,7 @@
 layout: post
 title: OpenMMLab 2.0数据集格式规范
 category: 计算机视觉
-tags: mmdetection3d
+tags: mmdetection3d hid
 keywords: 3D detection
 typora-root-url: ../..
 ---

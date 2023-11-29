@@ -3,7 +3,7 @@
 layout: post
 title: 深度图的训练流程
 category: 计算机视觉
-tags: detection
+tags: mmdetection3d hid
 keywords: depth image
 typora-root-url: ../..
 ---
