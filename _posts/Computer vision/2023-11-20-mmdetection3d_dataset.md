@@ -1,7 +1,7 @@
 ---
 
 layout: post
-title: 梳理mmdetection3d数据处理代码
+title: pointpillars在mmdetection3d上的应用
 category: 计算机视觉
 tags: mmdetection3d hid
 keywords: 3D detection
