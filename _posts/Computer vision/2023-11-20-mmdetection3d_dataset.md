@@ -280,7 +280,7 @@ python tools/train.py configs/pointpillars/pointpillars_hv_secfpn_8xb6-160e_kitt
 
 修改遵循两个规则：
 
-- `point cloud range` along z-axis（竖直轴） / `voxel_size` = 40
+- `point cloud range` along z-axis（竖直轴） / `voxel_size` = 1
 
 - `point cloud range` along x,y -axis / `voxel_size` 是16的整数倍。
 
@@ -320,4 +320,4 @@ mmdetection3d
 │   ├── create_data.py
 ```
 
-上述文件储存在github的mmdetection3d库中
+上述文件储存在github的mmdetection3d-hid中
