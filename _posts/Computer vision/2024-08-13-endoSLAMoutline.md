@@ -33,7 +33,7 @@ typora-root-url: ../..
 
 ### 数据集
 
-主流测试公开数据集 [C3VD](https://durrlab.github.io/C3VD/)  [SimCol](https://github.com/anitarau/simcol)
+主流测试公开数据集 [C3VD](https://durrlab.github.io/C3VD/)和[SimCol](https://github.com/anitarau/simcol)
 
 ### 临床应用场景
 
