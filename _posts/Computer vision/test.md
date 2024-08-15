@@ -1,7 +1,7 @@
 ---
 
 layout: post
-title: test
+title: endo的test
 category: 计算机视觉
 tags: endo
 keywords: end slam
