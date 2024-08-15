@@ -1,7 +1,7 @@
 ---
 
 layout: post
-title: endo-SLAM outline
+title: test
 category: 计算机视觉
 tags: endo
 keywords: end slam
