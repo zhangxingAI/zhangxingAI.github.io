@@ -3,8 +3,8 @@
 layout: post
 title: endo-SLAM outline
 category: 计算机视觉
-tags: endo
-keywords: end slam
+tags: endo slam
+keywords: end
 typora-root-url: ../..
 
 ---
