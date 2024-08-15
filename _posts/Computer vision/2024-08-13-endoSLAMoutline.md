@@ -24,12 +24,11 @@ typora-root-url: ../..
 		<center>
 		激光测距&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;三角测距
     <center>
-      <center>
+  <center>
   <img src="/public/upload/endo/endo9.gif" width="600"/>
   <center>
   结构光三维重建
-  <center>
-<center>
+
 
 ### 数据集
 
