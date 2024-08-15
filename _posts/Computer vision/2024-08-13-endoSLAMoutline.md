@@ -18,17 +18,23 @@ typora-root-url: ../..
 
 [![](https://mermaid.ink/img/pako:eNqVVG1P2lAU_itNP9VEtrRsX8g0ERF0E5eAH5YUs3RQhIQXgyXLYk2mEwGngjrUiApzU7eZgZss8iL4Z7i97b_YKS3GGtlLP9z0nue55z73nufcOdIb9fGkhfSHoq-9AS4mEMSkzRMh4JuNv5qOcTMBwsVK2zXpIjelxX3BGO8VgtEIMe7SIkNz7WoaNypKcg016ri0A-R5YmBgUESFeru-jr_WlZ1K-_qjtFAWrTSFksV2M4cSF_ii0fdvKVAipXxbxYVjubwsWhlKuvyB6ifo-0m7VtRTWGmVTwzTbLvaQCtfpF_v5cuDKSPIsDhdQ60FvFjDe0vo8558uozyLXW8LGmK9BXDNGEyDRI21uWwmmw4X5X26wbIRrO4sSUdLqFE2ggw7GQwzJuifpM_FJwOCC8nn9ul67fAM2jS2WbQm5ZPNwFTkpkuxgAG6AjDorUczpc0AYTb7nzoHh9y3qYNjtAsnOSGpGPaaINNHpiIF_ccw8YAch8wQvcCeq24WxH15pxQiKtdtLotw6HfNf_EhKqclVHqHEb8oSClsoYjaKNTFUWIwxMTop02hKRMVjnblXIpvJ4U7WZPREMNHv7LPd7va_Wz07pjYBeU2Z5S9dq7LkKrNSWxpsXMrJYaZRal3LnHo5kefIYOslIxeWujv1KfQEJRLpfBktoNiv-RnY_4tEnn504ru1m5tYWSddQ8QleZng1tn7tN6_ShA9q2dNhubvX1pjCUspeFmU5xdPw9SlMgs13fMEYZCjc3pOKVMWqmYAdcKRqjj7qWybeMwGMKrChXKsrBkQ6Mqg59CloTafm6KVV_SoWu4lFzT8jRaSNRaWzg_KY4BoqPD3EjAwpxY9_AGWMo-fSTklxBySYUQsfGGICeMVSEj_kNITM16-tGOvVwwT25yX4yzMfCXNAHL--cinpIIcCHeQ9pgV8f7-fiIcFDeiLzQOXiQtT9JuIlLUIszveTsWh8OkBa_FxoFmbxGR8n8LYgBwUO30R5X1CIxpza29554ud_A2oOkIg?type=png)](https://mermaid-js.github.io/mermaid-live-editor//edit#pako:eNqVVG1P2lAU_itNP9VEtrRsX8g0ERF0E5eAH5YUs3RQhIQXgyXLYk2mEwGngjrUiApzU7eZgZss8iL4Z7i97b_YKS3GGtlLP9z0nue55z73nufcOdIb9fGkhfSHoq-9AS4mEMSkzRMh4JuNv5qOcTMBwsVK2zXpIjelxX3BGO8VgtEIMe7SIkNz7WoaNypKcg016ri0A-R5YmBgUESFeru-jr_WlZ1K-_qjtFAWrTSFksV2M4cSF_ii0fdvKVAipXxbxYVjubwsWhlKuvyB6ifo-0m7VtRTWGmVTwzTbLvaQCtfpF_v5cuDKSPIsDhdQ60FvFjDe0vo8558uozyLXW8LGmK9BXDNGEyDRI21uWwmmw4X5X26wbIRrO4sSUdLqFE2ggw7GQwzJuifpM_FJwOCC8nn9ul67fAM2jS2WbQm5ZPNwFTkpkuxgAG6AjDorUczpc0AYTb7nzoHh9y3qYNjtAsnOSGpGPaaINNHpiIF_ccw8YAch8wQvcCeq24WxH15pxQiKtdtLotw6HfNf_EhKqclVHqHEb8oSClsoYjaKNTFUWIwxMTop02hKRMVjnblXIpvJ4U7WZPREMNHv7LPd7va_Wz07pjYBeU2Z5S9dq7LkKrNSWxpsXMrJYaZRal3LnHo5kefIYOslIxeWujv1KfQEJRLpfBktoNiv-RnY_4tEnn504ru1m5tYWSddQ8QleZng1tn7tN6_ShA9q2dNhubvX1pjCUspeFmU5xdPw9SlMgs13fMEYZCjc3pOKVMWqmYAdcKRqjj7qWybeMwGMKrChXKsrBkQ6Mqg59CloTafm6KVV_SoWu4lFzT8jRaSNRaWzg_KY4BoqPD3EjAwpxY9_AGWMo-fSTklxBySYUQsfGGICeMVSEj_kNITM16-tGOvVwwT25yX4yzMfCXNAHL--cinpIIcCHeQ9pgV8f7-fiIcFDeiLzQOXiQtT9JuIlLUIszveTsWh8OkBa_FxoFmbxGR8n8LYgBwUO30R5X1CIxpza29554ud_A2oOkIg)
 
-<center class="half">
+<div style="text-align: center;">
     <img src="/public/upload/endo/endo7.png" width="300"/>
     <img src="/public/upload/endo/endo8.png" width="200"/>
-  	<center>
-		<center>
-		激光测距&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;三角测距
-    <center>
-  <center>
-  <img src="/public/upload/endo/endo9.gif" width="600"/>
-  <center>
-  结构光三维重建
+</div>
+
+<div style="text-align: center;">
+    激光测距&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;三角测距
+</div>
+
+<div style="text-align: center;">
+    <img src="/public/upload/endo/endo9.gif" width="600"/>
+</div>
+
+<div style="text-align: center;">
+    结构光三维重建
+</div>
+
 
 
 ### 数据集
