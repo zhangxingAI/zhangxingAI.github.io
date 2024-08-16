@@ -16,7 +16,9 @@ typora-root-url: ../..
 
 ### Relative work
 
-![mermaid-diagram-2024-08-15-184011](/public/upload/endo/endo10.svg)
+![mermaid-diagram-2024-08-15-184011](/public/upload/endo/endo10.png)
+
+<img src="/public/upload/endo/endo11.png" alt="mermaid-diagram-2024-08-15-184011" style="zoom:50%;" />
 
 <div style="text-align: center;">
     <img src="/public/upload/endo/endo7.png" width="300"/>
