@@ -18,7 +18,7 @@ typora-root-url: ../..
 
 ![mermaid-diagram-2024-08-15-184011](/public/upload/endo/endo10.png)
 
-<img src="/public/upload/endo/endo11.png" alt="mermaid-diagram-2024-08-15-184011" style="zoom:50%;" />
+<img src="/public/upload/endo/endo11.png" alt="mermaid-diagram-2024-08-15-184011" style="zoom:20%;" />
 
 <div style="text-align: center;">
     <img src="/public/upload/endo/endo7.png" width="300"/>
