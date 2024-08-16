@@ -20,8 +20,6 @@ typora-root-url: ../..
 
 <img src="/public/upload/endo/endo11.png" alt="mermaid-diagram-2024-08-15-184011" style="zoom:20%;" />
 
-<img src="/public/upload/endo/endo12.png" alt="mermaid-diagram-2024-08-15-184011" style="zoom:100%;" />
-
 <div style="text-align: center;">
     <img src="/public/upload/endo/endo7.png" width="300"/>
     <img src="/public/upload/endo/endo8.png" width="200"/>
